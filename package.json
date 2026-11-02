@@ -1,0 +1,33 @@
+{
+  "name": "com.muxy.gateway",
+  "version": "0.0.1",
+  "displayName": "Muxy Hypeline",
+  "description": "Muxy Hypeline connects your Unity game to live audience interactions on Twitch.",
+  "unity": "2020.3",
+  "unityRelease": "0f1",
+  "dependencies": {
+    "com.unity.ugui": "1.0.0",
+    "com.unity.modules.audio": "1.0.0",
+    "com.unity.modules.imageconversion": "1.0.0"
+  },
+  "samples": [
+    {
+      "displayName": "First viewer action",
+      "description": "Show a logo when a viewer activates an action.",
+      "path": "Samples~/First Action"
+    },
+    {
+      "displayName": "DemoMaterials",
+      "description": "Optional action, poll and code-only tutorial examples. Remove the imported folder when finished.",
+      "path": "Samples~/DemoMaterials"
+    }
+  ],
+  "documentationUrl": "https://muxy.github.io/hypeline-unity/",
+  "changelogUrl": "",
+  "licensesUrl": "",
+  "author": {
+    "name": "Muxy",
+    "email": "support+unity@muxy.io",
+    "url": "https://www.muxy.io"
+  }
+}
