@@ -4,7 +4,7 @@ Let your live audience interact with your Unity game on Twitch.
 
 [Read the Hypeline Unity developer guide](https://muxy.github.io/hypeline-unity/) for installation, setup, viewer actions, and polls.
 
-Install the package in Unity Package Manager using:
+Install the latest SDK from the main branch in Unity Package Manager using:
 
 ```text
 https://github.com/muxy/hypeline-unity.git#main
