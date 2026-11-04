@@ -286,10 +286,12 @@ namespace MuxyHypeline
 
         public SDK(string GameID)
         {
-            if (string.IsNullOrEmpty(GameID)) throw new ArgumentException("A game ID is required.", nameof(GameID));
+            // Trim and lowercase so " My-Game " and "my-game" reach the server as the same ID.
+            string normalizedGameID = HypelineGameId.Normalize(GameID);
+            if (normalizedGameID.Length == 0) throw new ArgumentException("A game ID is required.", nameof(GameID));
 
-            Instance = Imported.MGW_MakeSDK(GameID);
-            this.GameID = GameID;
+            Instance = Imported.MGW_MakeSDK(normalizedGameID);
+            this.GameID = normalizedGameID;
             this.Transport = new WebsocketTransport();
 
             InvokeOnDebugMessageParameters args = new InvokeOnDebugMessageParameters();
