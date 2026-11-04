@@ -69,7 +69,7 @@
 <section id="before-you-start"><div class="section-label">GETTING STARTED</div><h2>Before you start</h2>
 <p>You need:</p>
 <ul class="check-list"><li>A Unity project using Unity 2020.3 or newer and a desktop target. Test your own target, architecture, and scripting backend before release; package import alone does not establish platform support.</li><li>Git installed and available to Unity for installation from a Git URL. Alternatively, obtain a local checkout of the SDK and select its <code>package.json</code> in Package Manager; keep that folder in place.</li><li>A Twitch broadcaster account that can install and activate the Muxy Gateway extension on its channel.</li><li>A separate viewer account or browser session to test the audience experience.</li></ul>
-<p>This guide uses the testing Game ID <code>gamelink-testing</code>. Before connecting, confirm that this exact ID is listed under <strong>Linked Games</strong> in the broadcaster&#x27;s extension configuration. For your own game, use its assigned ID and ensure it matches the extension configuration.</p>
+<p>This guide uses the testing Game ID <code>gamelink-testing</code>. Before connecting, confirm that this exact ID is listed under <strong>Linked Games</strong> in the broadcaster&#x27;s extension configuration. The Hypeline service currently accepts only the shared ID <code>gamelink-testing</code> for Unity games; other Game IDs are rejected at sign-in. Keep <code>gamelink-testing</code> until Muxy assigns your game its own ID.</p>
 </section>
 
 <section id="install"><div class="section-label">STEP 01</div><h2>Install the SDK</h2>
@@ -165,8 +165,9 @@ visible in-game viewer-action alert is a required part of the integration.
    it. Inspect the actual installed package rather than assuming types exist.
 
 2. **Set up the scene.** Reuse or add MuxyHypelineManager. For the tutorial use
-   Game ID `gamelink-testing` only if it matches Linked Games in the broadcaster's
-   extension configuration; otherwise use my assigned, matching Game ID. Set
+   Game ID `gamelink-testing` (the only ID the service currently accepts) and
+   confirm it appears under Linked Games in the broadcaster's extension
+   configuration. Set
    the game name and leave Theme blank for the default. Add MuxyHypelineMenu and
    the required MuxyHypelineInteractionAlert, both referencing that manager.
    Keep the alert active and readable over the game and broadcast HUD. If the
@@ -330,8 +331,7 @@ public class HypelineActionDemo : MonoBehaviour
         config.Options.Add("Ice Cave");
         config.OnPollUpdate = update =&gt;
         {
-            // The manager does not forward this delegate automatically.
-            HypelineManager.OnPollUpdate.Invoke(update);
+            // The manager also forwards every update to its OnPollUpdate event.
             if (!update.IsFinal) return;
             status = update.Count &gt; 0 &amp;&amp; update.Winner &gt;= 0 &amp;&amp;
                      update.Winner &lt; config.Options.Count
@@ -604,7 +604,9 @@ public class HypelineCodeDemo : MonoBehaviour
 
     private void OnDisable()
     {
-        if (sdk != null) sdk.StopWebsocketTransport();
+        if (sdk == null) return;
+        // Dispose stops the connection and releases the native SDK and its callbacks.
+        sdk.Dispose();
         sdk = null;
         authenticationPending = false;
         pin = "";

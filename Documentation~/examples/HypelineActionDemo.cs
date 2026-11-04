@@ -71,8 +71,7 @@ public class HypelineActionDemo : MonoBehaviour
         config.Options.Add("Ice Cave");
         config.OnPollUpdate = update =>
         {
-            // The manager does not forward this delegate automatically.
-            HypelineManager.OnPollUpdate.Invoke(update);
+            // The manager also forwards every update to its OnPollUpdate event.
             if (!update.IsFinal) return;
             status = update.Count > 0 && update.Winner >= 0 &&
                      update.Winner < config.Options.Count

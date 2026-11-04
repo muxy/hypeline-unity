@@ -174,7 +174,9 @@ public class HypelineCodeDemo : MonoBehaviour
 
     private void OnDisable()
     {
-        if (sdk != null) sdk.StopWebsocketTransport();
+        if (sdk == null) return;
+        // Dispose stops the connection and releases the native SDK and its callbacks.
+        sdk.Dispose();
         sdk = null;
         authenticationPending = false;
         pin = "";

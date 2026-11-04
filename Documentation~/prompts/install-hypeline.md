@@ -38,8 +38,9 @@ visible in-game viewer-action alert is a required part of the integration.
    it. Inspect the actual installed package rather than assuming types exist.
 
 2. **Set up the scene.** Reuse or add MuxyHypelineManager. For the tutorial use
-   Game ID `gamelink-testing` only if it matches Linked Games in the broadcaster's
-   extension configuration; otherwise use my assigned, matching Game ID. Set
+   Game ID `gamelink-testing` (the only ID the service currently accepts) and
+   confirm it appears under Linked Games in the broadcaster's extension
+   configuration. Set
    the game name and leave Theme blank for the default. Add MuxyHypelineMenu and
    the required MuxyHypelineInteractionAlert, both referencing that manager.
    Keep the alert active and readable over the game and broadcast HUD. If the

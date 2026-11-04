@@ -12,7 +12,7 @@ public class MuxyHypelineMenu : MonoBehaviour
     [UnityEngine.Serialization.FormerlySerializedAs("GatewayManager")] public MuxyHypelineManager HypelineManager;
     public Texture2D FoxArtwork;
     public Texture2D WordmarkArtwork;
-    [TextArea] public string GameDescription = "Let your live audience interact with your game on Twitch and TikTok.";
+    [TextArea] public string GameDescription = "Let your live audience interact with your game on Twitch.";
     public bool ShowTikTokComingSoon = true;
     public string TwitchSetupUrl = "https://dashboard.twitch.tv/extensions/i575hs2x9lb3u8hqujtezit03w1740";
     public Color DisconnectedColor = new Color(0.67f, 0.70f, 0.76f);
@@ -79,7 +79,7 @@ public class MuxyHypelineMenu : MonoBehaviour
         }
         // Old serialized menu instances are upgraded without touching unrelated children.
         if (GameDescription == "Let your live audience interact with your game.")
-            GameDescription = "Let your live audience interact with your game on Twitch and TikTok.";
+            GameDescription = "Let your live audience interact with your game on Twitch.";
         if (modal != null && modal.transform.Find("Card/Headline") == null)
         {
             if (menuButton != null) { menuButton.gameObject.SetActive(false); Destroy(menuButton.gameObject); }
@@ -231,8 +231,11 @@ public class MuxyHypelineMenu : MonoBehaviour
     private void Disconnect()
     {
         if (HypelineManager.IsAuthenticated()) HypelineManager.Deauthenticate();
-        else HypelineManager.ClearSavedSession();
-        HypelineManager.ResetConnection();
+        else
+        {
+            HypelineManager.ClearSavedSession();
+            HypelineManager.ResetConnection();
+        }
         requested = false;
         authError = false;
         authenticationTimedOut = false;
