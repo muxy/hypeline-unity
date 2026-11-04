@@ -1,10 +1,37 @@
+using System;
 using System.Collections.Generic;
+using MuxyHypeline;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Networking;
 
 [CustomEditor(typeof(MuxyHypelineManager), true)]
 public sealed class MuxyHypelineManagerEditor : Editor
 {
+    private const double GameIdCheckTimeoutSeconds = 10.0;
+
+    [Serializable]
+    private sealed class PublicGameResponse
+    {
+        public string game_id = "";
+        public string name = "";
+        public string status = "";
+        public bool verified = false;
+    }
+
+    private UnityWebRequest gameIdRequest;
+    private UnityWebRequestAsyncOperation gameIdOperation;
+    private string gameIdRequestId;
+    private double gameIdRequestStartedAt;
+    private string gameIdResultId;
+    private string gameIdResultMessage;
+    private MessageType gameIdResultType;
+
+    private void OnDisable()
+    {
+        CancelGameIdCheck();
+    }
+
     public override void OnInspectorGUI()
     {
         if (EditorUtility.IsPersistent(target) && PrefabUtility.IsPartOfImmutablePrefab(target))
@@ -27,7 +54,9 @@ public sealed class MuxyHypelineManagerEditor : Editor
             else
             {
                 EditorGUILayout.PropertyField(property, true);
-                if (property.propertyPath == "GameLogo")
+                if (property.propertyPath == "GameID")
+                    DrawGameIdTools(property);
+                else if (property.propertyPath == "GameLogo")
                     EditorGUILayout.HelpBox("Optional: assign a readable logo texture here to show it in the Twitch extension.", MessageType.Info);
                 else if (property.propertyPath == "GameTexts" && property.isExpanded)
                     EditorGUILayout.HelpBox("Game Texts appear in the viewer's Game Info tab. For each entry, set the label and value; an icon name is optional. Update values from your game as they change.", MessageType.Info);
@@ -66,6 +95,140 @@ public sealed class MuxyHypelineManagerEditor : Editor
                     EditorGUILayout.HelpBox("Duplicate Game Action ID: " + value, MessageType.Warning);
             }
         }
+    }
+
+    private void DrawGameIdTools(SerializedProperty gameId)
+    {
+        string raw = gameId.stringValue;
+        string normalized = HypelineGameId.Normalize(raw);
+        bool valid = HypelineGameId.IsValidFormat(normalized);
+
+        if (normalized.Length == 0)
+            EditorGUILayout.HelpBox("Game ID is empty; the manager will use the shared test ID " + HypelineGameId.SharedTestId + ". Create your own Game ID before release.", MessageType.Info);
+        else if (!valid)
+            EditorGUILayout.HelpBox("Game ID must be 3-64 characters of lowercase letters, numbers and single hyphens, starting and ending with a letter or number. Copy the ID shown on the Hypeline games page.", MessageType.Warning);
+        else if (normalized == HypelineGameId.SharedTestId)
+            EditorGUILayout.HelpBox(HypelineGameId.SharedTestId + " is a shared test ID - create your own Game ID before release.", MessageType.Info);
+        else if (normalized != raw)
+            EditorGUILayout.HelpBox("The manager will use the normalized Game ID \"" + normalized + "\".", MessageType.Info);
+
+        bool checking = gameIdRequest != null;
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            if (GUILayout.Button(new GUIContent("Get a Game ID", "Open " + HypelineGameId.GamesPageUrl + " to create or manage your game's ID.")))
+                Application.OpenURL(HypelineGameId.GamesPageUrl);
+            using (new EditorGUI.DisabledScope(checking || !valid))
+            {
+                if (GUILayout.Button(new GUIContent(checking ? "Checking..." : "Check", "Look up this Game ID on " + HypelineGameId.PortalUrl + ".")))
+                    StartGameIdCheck(normalized);
+            }
+        }
+
+        if (!checking && gameIdResultMessage != null && gameIdResultId == normalized)
+            EditorGUILayout.HelpBox(gameIdResultMessage, gameIdResultType);
+    }
+
+    private void StartGameIdCheck(string id)
+    {
+        CancelGameIdCheck();
+        gameIdResultMessage = null;
+        gameIdRequestId = id;
+        gameIdRequestStartedAt = EditorApplication.timeSinceStartup;
+        gameIdRequest = UnityWebRequest.Get(HypelineGameId.PublicLookupUrl(id));
+        gameIdRequest.timeout = (int)GameIdCheckTimeoutSeconds;
+        gameIdRequest.SetRequestHeader("Accept", "application/json");
+        gameIdOperation = gameIdRequest.SendWebRequest();
+        EditorApplication.update += PollGameIdCheck;
+    }
+
+    private void PollGameIdCheck()
+    {
+        if (gameIdRequest == null)
+        {
+            EditorApplication.update -= PollGameIdCheck;
+            return;
+        }
+
+        if (!gameIdOperation.isDone)
+        {
+            if (EditorApplication.timeSinceStartup - gameIdRequestStartedAt < GameIdCheckTimeoutSeconds + 1.0) return;
+            SetGameIdResult(gameIdRequestId, "Could not check the Game ID: " + HypelineGameId.PortalUrl + " did not respond within " + GameIdCheckTimeoutSeconds.ToString("0") + " seconds.", MessageType.Warning);
+            CancelGameIdCheck();
+            Repaint();
+            return;
+        }
+
+        string id = gameIdRequestId;
+        long code = gameIdRequest.responseCode;
+        string error = gameIdRequest.error;
+        string body = gameIdRequest.downloadHandler == null ? null : gameIdRequest.downloadHandler.text;
+        CancelGameIdCheck();
+        InterpretGameIdResponse(id, code, error, body);
+        Repaint();
+    }
+
+    private void InterpretGameIdResponse(string id, long code, string error, string body)
+    {
+        if (code == 404)
+        {
+            SetGameIdResult(id, "\"" + id + "\" is not registered, so sign-in will be rejected. Create it on the games page (Get a Game ID), or use " + HypelineGameId.SharedTestId + " for testing.", MessageType.Warning);
+            return;
+        }
+        if (code != 200)
+        {
+            string detail = code == 0 ? (string.IsNullOrEmpty(error) ? "network error" : error) : "HTTP " + code;
+            SetGameIdResult(id, "Could not check the Game ID (" + detail + "). Check your network connection and try again.", MessageType.Warning);
+            return;
+        }
+
+        PublicGameResponse game = null;
+        try
+        {
+            game = JsonUtility.FromJson<PublicGameResponse>(body ?? "");
+        }
+        catch (Exception)
+        {
+            game = null;
+        }
+        if (game == null || string.IsNullOrEmpty(game.status))
+        {
+            SetGameIdResult(id, "Could not check the Game ID: the response was not understood.", MessageType.Warning);
+            return;
+        }
+
+        string name = string.IsNullOrEmpty(game.name) ? id : game.name;
+        if (game.status == "active")
+        {
+            if (game.verified)
+                SetGameIdResult(id, "Registered: " + name + " (verified by Muxy). Sign-in with this Game ID is accepted.", MessageType.Info);
+            else
+                SetGameIdResult(id, "Registered: " + name + " (unverified). Sign-in with this Game ID is accepted; Muxy has not verified this game yet.", MessageType.Info);
+        }
+        else if (game.status == "suspended")
+            SetGameIdResult(id, name + " is suspended by Muxy, so sign-in is rejected. See " + HypelineGameId.GamesPageUrl + " or contact Muxy.", MessageType.Error);
+        else if (game.status == "archived")
+            SetGameIdResult(id, name + " is archived, so sign-in is rejected. Its owner can restore it at " + HypelineGameId.GamesPageUrl + ".", MessageType.Error);
+        else
+            SetGameIdResult(id, name + " has status \"" + game.status + "\"; sign-in may be rejected.", MessageType.Warning);
+    }
+
+    private void SetGameIdResult(string id, string message, MessageType type)
+    {
+        gameIdResultId = id;
+        gameIdResultMessage = message;
+        gameIdResultType = type;
+    }
+
+    private void CancelGameIdCheck()
+    {
+        EditorApplication.update -= PollGameIdCheck;
+        if (gameIdRequest != null)
+        {
+            if (gameIdOperation != null && !gameIdOperation.isDone) gameIdRequest.Abort();
+            gameIdRequest.Dispose();
+        }
+        gameIdRequest = null;
+        gameIdOperation = null;
     }
 
     private static void DrawMetadata(SerializedProperty metadata)

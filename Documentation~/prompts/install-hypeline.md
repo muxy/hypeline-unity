@@ -37,10 +37,14 @@ visible in-game viewer-action alert is a required part of the integration.
    fixed release. Add the Muxy.Hypeline assembly reference if my assembly needs
    it. Inspect the actual installed package rather than assuming types exist.
 
-2. **Set up the scene.** Reuse or add MuxyHypelineManager. For the tutorial use
-   Game ID `gamelink-testing` (the only ID the service currently accepts) and
-   confirm it appears under Linked Games in the broadcaster's extension
-   configuration. Set
+2. **Set up the scene.** Reuse or add MuxyHypelineManager. Set its Game ID to
+   my game's own ID from https://dev.muxy.io/games if I give you one (I create
+   the game there and copy its ID; IDs are permanent). Otherwise use the shared
+   test ID `gamelink-testing`, which is fine for the samples, and remind me to
+   create my own Game ID before release. Use the Inspector's Check button next
+   to Game ID to confirm the ID is registered and active, and report its result.
+   If the broadcaster's extension configuration lists the Game ID under Linked
+   Games, confirm it is allowed there. Set
    the game name and leave Theme blank for the default. Add MuxyHypelineMenu and
    the required MuxyHypelineInteractionAlert, both referencing that manager.
    Keep the alert active and readable over the game and broadcast HUD. If the
@@ -68,7 +72,9 @@ visible in-game viewer-action alert is a required part of the integration.
    still verify the alert with a real action in step 6.
 
 5. **Connect Twitch.** Use the broadcaster channel/configuration I specify.
-   Confirm the extension is installed, active, and linked to the same Game ID.
+   Confirm the extension is installed and active, and that the Game ID is not
+   disallowed under Linked Games. If sign-in fails, check the Game ID with the
+   Inspector's Check button before requesting another code.
    Use a fresh six-character PIN from that configuration; it expires after five
    minutes. If I authorize use of the open configuration tab, request another
    code there when needed. Enter it in the game's Stream Interactivity panel,

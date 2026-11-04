@@ -11,7 +11,9 @@ Security and reliability
 - Validate actions (IDs, duplicates, Impact 0–5, Count 0–`InfiniteCount`), polls (at most 10 options, prompt ≤256 and options ≤128 UTF-8 bytes) and metadata limits before calling native code, which drops oversized requests silently. Null strings are sent as empty strings instead of null pointers.
 - `SDK.SetGameLogo()` resends the last name and theme so they are no longer cleared.
 - The manager forwards poll updates to its `OnPollUpdate` event, adds a `Stage` setting, and publishes texts, actions and metadata only after sign-in.
-- The guide no longer tells developers to use a per-game ID; the service currently accepts only `gamelink-testing`.
+- Per-game IDs: create your game's own Game ID at https://dev.muxy.io/games (self-serve, active immediately in sandbox and production) and enter it in the manager's Game ID field. `gamelink-testing` remains a shared test ID for trying the samples. The guide, install prompt and code sample describe the per-game step again.
+- The MuxyHypelineManager Inspector validates the Game ID format, flags the shared test ID, adds a "Get a Game ID" button that opens the games page, and a "Check" button that looks the ID up and reports registered (verified or unverified), suspended, archived, not registered, or a network error. The package now declares the JSON Serialize and UnityWebRequest modules this check uses.
+- Add `MuxyHypeline.HypelineGameId` with `Normalize`, `IsValidFormat` and the portal URLs. The manager and the code sample trim and lowercase the Game ID before creating the SDK. A failed sign-in warning now mentions that an unregistered, suspended or archived Game ID is also rejected.
 
 - Make the in-game viewer-action alert a required setup, local preview, live-action checkpoint, and gameplay-adaptation requirement in steps 1–7 of the getting-started guide.
 - Include a six-second viewer/action notification in the C# integration sample using the existing fulfilled healthpack handler.

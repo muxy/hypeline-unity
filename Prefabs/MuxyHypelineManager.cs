@@ -10,8 +10,8 @@ public class MuxyHypelineManager : MonoBehaviour
 {
 
     [InspectorName("Game ID")]
-    [Tooltip("The ID for this game. Set it before Play mode; use gamelink-testing while testing.")]
-    public String GameID = "gamelink-testing";
+    [Tooltip("Your game's Hypeline Game ID from https://dev.muxy.io/games. Set it before Play mode. gamelink-testing is a shared test ID for trying the samples; create your own Game ID before release.")]
+    public String GameID = HypelineGameId.SharedTestId;
 
     [Tooltip("Hypeline backend to connect to. Both stages use encrypted wss:// connections.")]
     public Stage Stage = Stage.Production;
@@ -82,7 +82,7 @@ public class MuxyHypelineManager : MonoBehaviour
             }
             if (Response.HasError)
             {
-                Debug.LogWarning("Hypeline: Twitch authentication failed. Request a new code and check the extension configuration.");
+                Debug.LogWarning("Hypeline: Twitch authentication failed. Request a new code and check the extension configuration. An unregistered, suspended or archived Game ID (\"" + GameID + "\") is also rejected at sign-in; select MuxyHypelineManager and use Check next to Game ID in the Inspector.");
                 PlayerPrefs.SetString(PLAYER_PREFS_REFRESH_TOKEN, "");
                 OnAuthentication.Invoke(Response);
                 return;
@@ -127,10 +127,9 @@ public class MuxyHypelineManager : MonoBehaviour
 
     protected void OnEnable()
     {
-        if (String.IsNullOrWhiteSpace(GameID)) GameID = "gamelink-testing";
         if (SDK == null)
         {
-            SDK = new SDK(GameID);
+            SDK = new SDK(ResolveGameID());
             DidOpenAndRun = false;
             SetupCallbacks();
             CheckForRefreshToken();
@@ -196,11 +195,21 @@ public class MuxyHypelineManager : MonoBehaviour
         if (previous != null) previous.Dispose();
         if (isActiveAndEnabled)
         {
-            if (String.IsNullOrWhiteSpace(GameID)) GameID = "gamelink-testing";
-            SDK = new SDK(GameID);
+            SDK = new SDK(ResolveGameID());
             SetupCallbacks();
         }
         Debug.Log("Hypeline: Connection reset. Enter a new Twitch code to retry.");
+    }
+
+    /// <summary>Normalizes GameID (trimmed, lower case) and falls back to the shared test ID when empty.</summary>
+    private string ResolveGameID()
+    {
+        string normalized = HypelineGameId.Normalize(GameID);
+        if (normalized.Length == 0) normalized = HypelineGameId.SharedTestId;
+        else if (!HypelineGameId.IsValidFormat(normalized))
+            Debug.LogWarning("Hypeline: Game ID \"" + normalized + "\" is not a valid Game ID; sign-in will be rejected. Use the ID shown at " + HypelineGameId.GamesPageUrl + ".");
+        GameID = normalized;
+        return normalized;
     }
 
     public void AuthenticateWithPIN(String PIN)

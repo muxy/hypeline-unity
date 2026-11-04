@@ -4,6 +4,8 @@ using UnityEngine;
 // Alternative to the prefab manager. Do not run both integrations together.
 public class HypelineCodeDemo : MonoBehaviour
 {
+    // Your Game ID from https://dev.muxy.io/games. gamelink-testing is a shared
+    // test ID for trying this sample; create your own Game ID before release.
     [SerializeField] private string gameID = "gamelink-testing";
     private SDK sdk;
     private string pin = "";
@@ -17,7 +19,9 @@ public class HypelineCodeDemo : MonoBehaviour
 
     private void OnEnable()
     {
-        sdk = new SDK(gameID);
+        // Game IDs are lower case; trim and lowercase whatever was typed in the Inspector.
+        string id = HypelineGameId.Normalize(gameID);
+        sdk = new SDK(id.Length > 0 ? id : HypelineGameId.SharedTestId);
         sdk.RunInProduction();
     }
 
@@ -43,7 +47,7 @@ public class HypelineCodeDemo : MonoBehaviour
             pin = "";
             if (response.HasError)
             {
-                status = "Authentication failed. Request a fresh PIN and retry.";
+                status = "Authentication failed. Request a fresh PIN and retry, and check that the Game ID is registered and active.";
                 return;
             }
             PublishSetup();
