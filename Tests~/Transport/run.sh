@@ -1,8 +1,9 @@
 #!/bin/sh
 # Builds Runtime/HypelineWebsocketTransport.cs with a stub SDK and a loopback
 # WebSocket server, then runs the transport regression tests under Mono.
-# Needs Mono (mono and its csc on PATH, or set MONO and CSC). Pass test names
-# to run only those. Unity ignores this folder because its name ends in ~.
+# Needs Mono (mono and its csc on PATH, or set MONO and CSC) and perl. Pass
+# test names to run only those. Unity ignores this folder because its name
+# ends in ~.
 set -eu
 
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -19,7 +20,7 @@ trap 'rm -rf "$OUT"' EXIT
 # socket send or receive with one that never completes. The shipped runtime
 # has no such hooks. Fail loudly if a line a hook goes after has changed.
 perl -0777 -ne '
-    my $n = s/(\n([ \t]*)else instance\.HandleReconnect\(\);\n[ \t]*\}\n)/$1$2TestHooks.AfterDrain?.Invoke();\n/g;
+    my $n = s/(\n[ \t]*else instance\.HandleReconnect\(\);\n([ \t]*)\}\n)/$1$2TestHooks.AfterDrain?.Invoke();\n/g;
     die "run.sh: could not find where to add the test hook in Update\n" unless $n == 1;
     $n = s/(\n([ \t]*)Task send = connection\.Socket\.SendAsync\([^\n]*\);\n)/$1$2send = TestHooks.Sending?.Invoke(send) ?? send;\n/g;
     die "run.sh: could not find where to add the test hook in SendLoop\n" unless $n == 1;

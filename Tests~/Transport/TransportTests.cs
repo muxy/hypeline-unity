@@ -140,12 +140,18 @@ namespace MuxyHypeline.Tests
                 {
                     if (!armed) return;
                     armed = false;
+                    // If the reconnect was handled already, it landed before this Update
+                    // drained the queue and the race was not tested. That happens if the
+                    // test thread stalls for the 500 ms reconnect delay since the close.
+                    // Checking IsConnected instead would fail a reconnect that lands
+                    // after the drain, which is the race this test is for.
+                    if (sdk.Events.Contains("reconnect")) throw new Exception("the reconnect was handled before the hook ran, so the race was not tested");
                     WaitUntil(() => transport.IsConnected, "the transport has reconnected");
                 };
                 try { transport.Update(sdk); }
                 finally { TestHooks.AfterDrain = null; }
-                if (sdk.PayloadRequests != before && !sdk.Events.Contains("reconnect"))
-                    throw new Exception("payloads were requested before HandleReconnect");
+                if (armed) throw new Exception("Update did not reach the test hook");
+                if (sdk.PayloadRequests != before) throw new Exception("payloads were requested before HandleReconnect");
 
                 transport.Update(sdk);
                 Expect(sdk, "reconnect");
@@ -173,6 +179,10 @@ namespace MuxyHypeline.Tests
         }
 
         // A callback that stops the transport ends delivery of the queued messages.
+        // StopAsync empties the queue synchronously, so this passes even without
+        // the Current == session re-check in TryTakeIncoming. That re-check is
+        // still required: it is the only thing that stops Update delivering a
+        // message the receiver queues after StopAsync emptied the queue.
         private static void StopFromCallback()
         {
             using (var server = new LoopbackServer(1, async (index, connection) =>

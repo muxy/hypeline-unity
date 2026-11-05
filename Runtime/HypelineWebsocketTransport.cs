@@ -35,7 +35,8 @@ namespace MuxyHypeline
         // including those residual operations, rather than opening more sockets.
         private static readonly SemaphoreSlim ConnectSlots = new SemaphoreSlim(4, 4);
 
-        // Incoming messages larger than this close the connection.
+        // A larger incoming message, or a binary one, is a protocol violation: the
+        // transport faults (Error) and drops the messages it has not delivered yet.
         private const int MaximumMessageBytes = 16 * 1024 * 1024;
 
         private sealed class Connection : IDisposable
@@ -130,6 +131,8 @@ namespace MuxyHypeline
             // Received messages and reconnects in arrival order. The queue outlives
             // each connection, so a message that arrives just before a close is still
             // delivered by the next Update instead of being dropped with its socket.
+            // It is emptied when the session ends: on StopAsync, or when the transport
+            // faults on a protocol violation.
             internal readonly ConcurrentQueue<Inbound> Incoming = new ConcurrentQueue<Inbound>();
             internal SDK Instance;
             internal Connection Connection;
@@ -359,8 +362,10 @@ namespace MuxyHypeline
                 {
                     session.Ready.TrySetCanceled();
                     if (Current == session) Current = null;
-                    // An ended session delivers nothing more. This also drops anything
-                    // the receiver queued while StopAsync was shutting it down.
+                    // An ended session delivers nothing more. This drops anything the
+                    // receiver queued while StopAsync was shutting it down and, when the
+                    // transport faulted on a protocol violation (a binary message or one
+                    // over MaximumMessageBytes), the messages received before it.
                     while (session.Incoming.TryDequeue(out _)) { }
                     session.Lifetime.Dispose();
                 }
@@ -415,7 +420,8 @@ namespace MuxyHypeline
                         memory.Write(buffer, 0, result.Count);
                     } while (!result.EndOfMessage);
                     // Keep a complete message even when this connection is being torn
-                    // down; Update still delivers it unless the session was stopped.
+                    // down; Update still delivers it unless the session has ended (stopped,
+                    // or faulted on a protocol violation).
                     session.Incoming.Enqueue(new Inbound { Message = Encoding.UTF8.GetString(memory.ToArray()) });
                     token.ThrowIfCancellationRequested();
                 }
@@ -465,6 +471,10 @@ namespace MuxyHypeline
             lock (Gate)
             {
                 active = null;
+                // A callback may have stopped the session since the last call. StopAsync
+                // empties the queue, but the receiver can still queue a message it
+                // finished receiving just before the stop. Re-checking Current is what
+                // keeps this Update from delivering it. No test covers this; keep it.
                 while (Current == session && session.Incoming.TryDequeue(out next))
                 {
                     // A reconnect only matters while its connection is still the active

@@ -1,7 +1,7 @@
 [Unreleased]
 Security and reliability
 - Connect to production and sandbox over `wss://` with normal certificate validation. Previously both stages used unencrypted `ws://`, which sent PINs, session tokens and refresh tokens in cleartext. Custom endpoints may use `ws://` only for loopback test servers.
-- Replace the transport with the Gateway Unity 1.1.0-rc.1 implementation: tracked send/receive tasks, bounded reconnect backoff, 16 MiB message limit, and native calls only from `SDK.Update()` on the main thread.
+- Replace the transport with the Gateway Unity 1.1.0-rc.1 implementation: tracked send/receive tasks, bounded reconnect backoff, 16 MiB message limit, and native calls only from `SDK.Update()` on the main thread. Messages that arrive just before a connection closes are still delivered by `SDK.Update()`, in arrival order, before `HandleReconnect` for the next connection. A binary message or one over 16 MiB is a protocol violation: the transport faults (`HypelineTransportState.Error`, no reconnect) and drops the messages it has not delivered yet. `Tests~/Transport` has a Mono regression harness for the transport.
 - Add `SDK.Dispose()`, `RunInProductionAsync`/`RunInSandboxAsync`, `StopWebsocketTransportAsync`, `IsConnected` and `LastConnectionError`. The prefabs dispose their SDK on disable and reset instead of leaving it to the finalizer.
 - Native debug logging is off by default (`SDK.DebugLoggingEnabled`); authentication payloads are still redacted when it is on.
 - Normalise PINs to upper case before sending; the server only consumes the upper-case code.
@@ -15,7 +15,6 @@ Security and reliability
 - The MuxyHypelineManager Inspector validates the Game ID format, flags the shared test ID, adds a "Get a Game ID" button that opens the games page, and a "Check" button that looks the ID up and reports registered (verified or unverified), suspended, archived, not registered, or a network error. The package now declares the JSON Serialize and UnityWebRequest modules this check uses.
 - Add `MuxyHypeline.HypelineGameId` with `Normalize`, `IsValidFormat` and the portal URLs. The manager and the code sample trim and lowercase the Game ID before creating the SDK. A failed sign-in warning now mentions that an unregistered, suspended or archived Game ID is also rejected.
 - The `SDK` constructor now trims and lowercases the Game ID with `HypelineGameId.Normalize` before validating it and passing it to native code, so IDs created directly in code match the portal ID too. A Game ID that is empty or whitespace-only throws `ArgumentException`.
-- Deliver messages that arrive just before a connection closes. When the close arrived before the next `SDK.Update()`, the message was discarded with the socket, which could lose an authentication response or action notification. `SDK.Update()` now delivers such messages in arrival order, before reconnect handling for the next connection. Add a Mono regression harness for the transport in `Tests~/Transport`.
 
 - Make the in-game viewer-action alert a required setup, local preview, live-action checkpoint, and gameplay-adaptation requirement in steps 1–7 of the getting-started guide.
 - Include a six-second viewer/action notification in the C# integration sample using the existing fulfilled healthpack handler.
