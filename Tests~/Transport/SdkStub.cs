@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace MuxyHypeline
 {
@@ -22,6 +23,9 @@ namespace MuxyHypeline
         // How many times the transport asked for outgoing payloads.
         public int PayloadRequests;
 
+        // Payloads to hand over the next time the transport asks for them.
+        public readonly Queue<string> Payloads = new Queue<string>();
+
         // Runs inside ReceiveMessage, like a user callback would.
         public Action<string> OnMessage;
 
@@ -38,6 +42,10 @@ namespace MuxyHypeline
             return true;
         }
 
-        public void ForeachPayload(ForeachPayloadDelegate Delegate) { PayloadRequests++; }
+        public void ForeachPayload(ForeachPayloadDelegate Delegate)
+        {
+            PayloadRequests++;
+            while (Payloads.Count != 0) Delegate(new Payload { Bytes = Encoding.UTF8.GetBytes(Payloads.Dequeue()) });
+        }
     }
 }

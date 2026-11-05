@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Net.WebSockets;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace MuxyHypeline.Tests
 {
@@ -24,6 +26,8 @@ namespace MuxyHypeline.Tests
                 new KeyValuePair<string, Action>("PayloadsWaitForReconnect", PayloadsWaitForReconnect),
                 new KeyValuePair<string, Action>("NothingAfterStop", NothingAfterStop),
                 new KeyValuePair<string, Action>("StopFromCallback", StopFromCallback),
+                new KeyValuePair<string, Action>("CloseDuringStuckSend", CloseDuringStuckSend),
+                new KeyValuePair<string, Action>("StopDuringStuckReceive", StopDuringStuckReceive),
             };
             int failed = 0, ran = 0;
             foreach (KeyValuePair<string, Action> test in tests)
@@ -188,10 +192,68 @@ namespace MuxyHypeline.Tests
             }
         }
 
+        // On Mono, a send that is in flight when the server's close frame arrives
+        // can stay pending forever, even after Abort and cancellation. Teardown
+        // must not wait for it: the transport still reconnects and can be stopped.
+        // TestHooks.Sending (added by run.sh) makes the first send one that never
+        // completes.
+        private static void CloseDuringStuckSend()
+        {
+            var stuck = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using (var server = new LoopbackServer(2, async (index, connection) =>
+            {
+                if (index != 0) return;
+                await stuck.Task;
+                await connection.SendClose();
+            }))
+            {
+                // Not disposed if the test fails: Dispose would wait for the stuck worker.
+                var transport = new WebsocketTransport();
+                var sdk = new SDK();
+                sdk.Payloads.Enqueue("payload");
+                TestHooks.Sending = send => stuck.TrySetResult(true) ? new TaskCompletionSource<bool>().Task : send;
+                try
+                {
+                    Start(transport, server, sdk);
+                    WaitUntil(() => { transport.Update(sdk); return stuck.Task.IsCompleted; }, "a send is in progress");
+                    WaitUntil(() => server.Accepted == 2 && transport.IsConnected, "the transport has reconnected");
+                }
+                finally { TestHooks.Sending = null; }
+                Stop(transport);
+            }
+        }
+
+        // The same holds for a receive: StopAsync completes although the receive
+        // never does. TestHooks.Receiving (added by run.sh) makes it never complete.
+        private static void StopDuringStuckReceive()
+        {
+            var stuck = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using (var server = new LoopbackServer(1, (index, connection) => Task.CompletedTask))
+            {
+                // Not disposed if the test fails: Dispose would wait for the stuck worker.
+                var transport = new WebsocketTransport();
+                TestHooks.Receiving = receive => stuck.TrySetResult(true) ? new TaskCompletionSource<WebSocketReceiveResult>().Task : receive;
+                try
+                {
+                    Start(transport, server, new SDK());
+                    if (!stuck.Task.Wait(Timeout)) throw new TimeoutException("timed out waiting until a receive is in progress");
+                }
+                finally { TestHooks.Receiving = null; }
+                Stop(transport);
+            }
+        }
+
         private static void Start(WebsocketTransport transport, LoopbackServer server, SDK sdk)
         {
             if (!transport.Open(server.Uri).Wait(Timeout)) throw new TimeoutException("Open did not complete.");
             transport.Run(sdk);
+        }
+
+        // Fails instead of blocking when the transport's worker never finishes.
+        private static void Stop(WebsocketTransport transport)
+        {
+            if (!transport.StopAsync().Wait(Timeout)) throw new TimeoutException("StopAsync did not complete.");
+            transport.Dispose();
         }
 
         private static void WaitUntil(Func<bool> condition, string what)

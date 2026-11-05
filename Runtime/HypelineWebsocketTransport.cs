@@ -330,6 +330,10 @@ namespace MuxyHypeline
                             lock (Gate) connection.Active = false;
                             cycle.Cancel();
                             connection.Abort();
+                            // No time limit: a receiver still running after this could queue a
+                            // message behind the next connection's reconnect entry. Both loops
+                            // end once cycle is canceled, because WithCancellation abandons a
+                            // send or receive that the socket leaves pending.
                             try { await Task.WhenAll(sender, receiver).ConfigureAwait(false); }
                             catch (Exception) { /* Both tasks are observed; the first error is recorded above. */ }
                             lock (Gate)
@@ -375,11 +379,15 @@ namespace MuxyHypeline
                         using (var timeout = CancellationTokenSource.CreateLinkedTokenSource(token))
                         {
                             timeout.CancelAfter(5000);
-                            await connection.Socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, timeout.Token).ConfigureAwait(false);
+                            Task send = connection.Socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, timeout.Token);
+                            await WithCancellation(send, timeout.Token).ConfigureAwait(false);
                         }
                     }
                     finally
                     {
+                        // Also safe if the send was abandoned: the socket copies the payload
+                        // only once it holds its send lock, and as this token is canceled
+                        // by then, it aborts before it writes anything.
                         Array.Clear(bytes, 0, bytes.Length);
                         Interlocked.Decrement(ref connection.PendingSends);
                     }
@@ -398,7 +406,9 @@ namespace MuxyHypeline
                     WebSocketReceiveResult result;
                     do
                     {
-                        result = await connection.Socket.ReceiveAsync(new ArraySegment<byte>(buffer), token).ConfigureAwait(false);
+                        Task<WebSocketReceiveResult> receive = connection.Socket.ReceiveAsync(new ArraySegment<byte>(buffer), token);
+                        await WithCancellation(receive, token).ConfigureAwait(false);
+                        result = await receive.ConfigureAwait(false);
                         if (result.MessageType == WebSocketMessageType.Close) throw new EndOfStreamException("Hypeline connection closed.");
                         if (result.MessageType != WebSocketMessageType.Text || memory.Length + result.Count > MaximumMessageBytes)
                             throw new InvalidDataException("Invalid Hypeline WebSocket message.");
@@ -410,6 +420,36 @@ namespace MuxyHypeline
                     token.ThrowIfCancellationRequested();
                 }
             }
+        }
+
+        // Waits for a socket send or receive, or abandons it when token is canceled first.
+        // On Mono, a send that is in flight when the server's close frame arrives can stay
+        // pending forever, even after Abort and its own cancellation. Teardown waits for
+        // both loops, so it would wait forever too: no reconnect, and StopAsync never
+        // completes. A loop whose operation is abandoned throws, so a receiver never
+        // queues a message after teardown.
+        private static async Task WithCancellation(Task operation, CancellationToken token)
+        {
+            if (!operation.IsCompleted)
+            {
+                var canceled = NewCompletion();
+                using (token.Register(() => canceled.TrySetResult(true)))
+                {
+                    await Task.WhenAny(operation, canceled.Task).ConfigureAwait(false);
+                }
+                if (!operation.IsCompleted)
+                {
+                    _ = ObserveAbandoned(operation);
+                    throw new OperationCanceledException(token);
+                }
+            }
+            await operation.ConfigureAwait(false);
+        }
+
+        private static async Task ObserveAbandoned(Task operation)
+        {
+            try { await operation.ConfigureAwait(false); }
+            catch (Exception) { /* Observe a late failure; nothing waits for it any more. */ }
         }
 
         // Takes the next entry for Update to deliver, as long as the session is current.
