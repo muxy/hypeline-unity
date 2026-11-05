@@ -43,11 +43,9 @@ namespace MuxyHypeline
             private readonly object SocketGate = new object();
             private bool Disposed;
             internal readonly ClientWebSocket Socket = new ClientWebSocket();
-            internal readonly ConcurrentQueue<string> Incoming = new ConcurrentQueue<string>();
             internal readonly ConcurrentQueue<byte[]> Outgoing = new ConcurrentQueue<byte[]>();
             // Payloads queued but not yet handed to the socket.
             internal int PendingSends;
-            internal int NotifyReconnect;
             internal bool Active;
 
             internal async Task ConnectAsync(Uri target, CancellationToken token)
@@ -110,10 +108,17 @@ namespace MuxyHypeline
                     Socket.Abort();
                     Socket.Dispose();
                 }
-                while (Incoming.TryDequeue(out _)) { }
                 while (Outgoing.TryDequeue(out byte[] bytes)) Array.Clear(bytes, 0, bytes.Length);
                 Interlocked.Exchange(ref PendingSends, 0);
             }
+        }
+
+        // One entry in a session's receive queue: a message, or, when Message is
+        // null, the point at which Reconnected became the active connection.
+        private struct Inbound
+        {
+            internal string Message;
+            internal Connection Reconnected;
         }
 
         private sealed class Session
@@ -122,6 +127,10 @@ namespace MuxyHypeline
             internal readonly CancellationTokenSource Lifetime = new CancellationTokenSource();
             internal readonly TaskCompletionSource<bool> Ready = NewCompletion();
             internal readonly TaskCompletionSource<bool> RunRequested = NewCompletion();
+            // Received messages and reconnects in arrival order. The queue outlives
+            // each connection, so a message that arrives just before a close is still
+            // delivered by the next Update instead of being dropped with its socket.
+            internal readonly ConcurrentQueue<Inbound> Incoming = new ConcurrentQueue<Inbound>();
             internal SDK Instance;
             internal Connection Connection;
             internal Task Worker;
@@ -287,7 +296,9 @@ namespace MuxyHypeline
                             lock (Gate)
                             {
                                 cycle.Token.ThrowIfCancellationRequested();
-                                connection.NotifyReconnect = session.ConnectedBefore ? 1 : 0;
+                                // Update calls HandleReconnect at this point in the queue: after
+                                // the old connection's messages, before the new connection's.
+                                if (session.ConnectedBefore) session.Incoming.Enqueue(new Inbound { Reconnected = connection });
                                 connection.Active = true;
                                 session.ConnectedBefore = true;
                             }
@@ -296,7 +307,7 @@ namespace MuxyHypeline
                             await session.RunRequested.Task.ConfigureAwait(false);
                             cycle.Token.ThrowIfCancellationRequested();
                             sender = SendLoop(connection, cycle.Token);
-                            receiver = ReceiveLoop(connection, cycle.Token);
+                            receiver = ReceiveLoop(session, connection, cycle.Token);
                             await (await Task.WhenAny(sender, receiver).ConfigureAwait(false)).ConfigureAwait(false);
                         }
                         catch (Exception error) when (error is WebSocketException || error is SocketException || error is AuthenticationException || error is IOException || error is OperationCanceledException || error is ObjectDisposedException || error is TimeoutException)
@@ -342,6 +353,9 @@ namespace MuxyHypeline
                 {
                     session.Ready.TrySetCanceled();
                     if (Current == session) Current = null;
+                    // An ended session delivers nothing more. This also drops anything
+                    // the receiver queued while StopAsync was shutting it down.
+                    while (session.Incoming.TryDequeue(out _)) { }
                     session.Lifetime.Dispose();
                 }
             }
@@ -372,7 +386,7 @@ namespace MuxyHypeline
             }
         }
 
-        private static async Task ReceiveLoop(Connection connection, CancellationToken token)
+        private static async Task ReceiveLoop(Session session, Connection connection, CancellationToken token)
         {
             while (true)
             {
@@ -388,33 +402,58 @@ namespace MuxyHypeline
                             throw new InvalidDataException("Invalid Hypeline WebSocket message.");
                         memory.Write(buffer, 0, result.Count);
                     } while (!result.EndOfMessage);
+                    // Keep a complete message even when this connection is being torn
+                    // down; Update still delivers it unless the session was stopped.
+                    session.Incoming.Enqueue(new Inbound { Message = Encoding.UTF8.GetString(memory.ToArray()) });
                     token.ThrowIfCancellationRequested();
-                    connection.Incoming.Enqueue(Encoding.UTF8.GetString(memory.ToArray()));
                 }
             }
         }
 
-        private bool IsCurrent(Session session, Connection connection)
+        // Takes the next entry for Update to deliver, as long as the session is current.
+        private bool TryTakeIncoming(Session session, out Inbound next)
         {
-            lock (Gate) return Current == session && session.Connection == connection && connection.Active;
+            lock (Gate)
+            {
+                while (Current == session && session.Incoming.TryDequeue(out next))
+                {
+                    // A reconnect only matters while its connection is still the active
+                    // one. If it has closed already, the next connection queues its own,
+                    // and each HandleReconnect queues another native re-authentication.
+                    if (next.Message != null || (next.Reconnected == session.Connection && next.Reconnected.Active)) return true;
+                }
+                next = default;
+                return false;
+            }
+        }
+
+        private bool TryGetActiveConnection(Session session, out Connection connection)
+        {
+            lock (Gate)
+            {
+                connection = session.Connection;
+                return Current == session && connection != null && connection.Active;
+            }
         }
 
         /// <summary>Dispatch callbacks and queue native payloads on the owning/main thread.</summary>
         public void Update(SDK instance)
         {
             Session session;
-            Connection connection;
             lock (Gate)
             {
                 session = Current;
-                connection = session?.Connection;
-                if (connection == null || !connection.Active || session.Instance != instance) return;
+                if (session == null || session.Instance != instance) return;
             }
             // Never hold Gate across a native/user callback: it may synchronously stop/dispose.
-            if (Interlocked.Exchange(ref connection.NotifyReconnect, 0) != 0 && IsCurrent(session, connection)) instance.HandleReconnect();
-            while (IsCurrent(session, connection) && connection.Incoming.TryDequeue(out string message))
-                instance.ReceiveMessage(message);
-            if (IsCurrent(session, connection))
+            // Received messages are delivered even after their connection has closed.
+            while (TryTakeIncoming(session, out Inbound next))
+            {
+                if (next.Message != null) instance.ReceiveMessage(next.Message);
+                else instance.HandleReconnect();
+            }
+            // Payloads stay queued in the native SDK until a connection is active.
+            if (TryGetActiveConnection(session, out Connection connection))
                 instance.ForeachPayload(payload =>
                 {
                     lock (Gate)
@@ -464,6 +503,9 @@ namespace MuxyHypeline
                 Session session = Current;
                 if (session == null) return Stopping;
                 Current = null;
+                // Nothing is delivered after a stop, so drop messages that already
+                // arrived now instead of when the worker exits.
+                while (session.Incoming.TryDequeue(out _)) { }
                 session.Lifetime.Cancel();
                 session.RunRequested.TrySetCanceled();
                 session.Ready.TrySetCanceled();
