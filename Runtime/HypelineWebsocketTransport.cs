@@ -298,6 +298,8 @@ namespace MuxyHypeline
                                 cycle.Token.ThrowIfCancellationRequested();
                                 // Update calls HandleReconnect at this point in the queue: after
                                 // the old connection's messages, before the new connection's.
+                                // TryTakeIncoming relies on this entry being queued in the same
+                                // lock section that makes the connection active.
                                 if (session.ConnectedBefore) session.Incoming.Enqueue(new Inbound { Reconnected = connection });
                                 connection.Active = true;
                                 session.ConnectedBefore = true;
@@ -411,10 +413,18 @@ namespace MuxyHypeline
         }
 
         // Takes the next entry for Update to deliver, as long as the session is current.
-        private bool TryTakeIncoming(Session session, out Inbound next)
+        // When none is left, active is the connection to hand payloads to, or null. It
+        // is read in the same lock section that found the queue empty. The worker queues
+        // a reconnect entry in the lock section that makes its connection active, so the
+        // active connection's entry, if it has one, has already been taken and Update has
+        // run HandleReconnect for it. Reading it in a later lock section would let a
+        // reconnect land in between, and payloads queued while disconnected would go out
+        // ahead of the native re-authentication.
+        private bool TryTakeIncoming(Session session, out Inbound next, out Connection active)
         {
             lock (Gate)
             {
+                active = null;
                 while (Current == session && session.Incoming.TryDequeue(out next))
                 {
                     // A reconnect only matters while its connection is still the active
@@ -423,16 +433,8 @@ namespace MuxyHypeline
                     if (next.Message != null || (next.Reconnected == session.Connection && next.Reconnected.Active)) return true;
                 }
                 next = default;
+                if (Current == session && session.Connection != null && session.Connection.Active) active = session.Connection;
                 return false;
-            }
-        }
-
-        private bool TryGetActiveConnection(Session session, out Connection connection)
-        {
-            lock (Gate)
-            {
-                connection = session.Connection;
-                return Current == session && connection != null && connection.Active;
             }
         }
 
@@ -447,13 +449,15 @@ namespace MuxyHypeline
             }
             // Never hold Gate across a native/user callback: it may synchronously stop/dispose.
             // Received messages are delivered even after their connection has closed.
-            while (TryTakeIncoming(session, out Inbound next))
+            Connection connection;
+            while (TryTakeIncoming(session, out Inbound next, out connection))
             {
                 if (next.Message != null) instance.ReceiveMessage(next.Message);
                 else instance.HandleReconnect();
             }
-            // Payloads stay queued in the native SDK until a connection is active.
-            if (TryGetActiveConnection(session, out Connection connection))
+            // Payloads stay queued in the native SDK until a connection is active and any
+            // reconnect to it has been handled; TryTakeIncoming returns only such a one.
+            if (connection != null)
                 instance.ForeachPayload(payload =>
                 {
                     lock (Gate)
