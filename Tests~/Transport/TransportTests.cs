@@ -21,6 +21,7 @@ namespace MuxyHypeline.Tests
                 new KeyValuePair<string, Action>("MessageThenClose", MessageThenClose),
                 new KeyValuePair<string, Action>("MessageCloseReconnect", MessageCloseReconnect),
                 new KeyValuePair<string, Action>("ClosedReconnectIsSkipped", ClosedReconnectIsSkipped),
+                new KeyValuePair<string, Action>("PayloadsWaitForReconnect", PayloadsWaitForReconnect),
                 new KeyValuePair<string, Action>("NothingAfterStop", NothingAfterStop),
                 new KeyValuePair<string, Action>("StopFromCallback", StopFromCallback),
             };
@@ -107,6 +108,44 @@ namespace MuxyHypeline.Tests
                 WaitUntil(() => server.Accepted == 3 && transport.IsConnected, "the transport has reconnected twice");
                 transport.Update(sdk);
                 Expect(sdk, "message:first", "reconnect");
+            }
+        }
+
+        // A reconnect can complete while Update is between delivering what was
+        // received and handing payloads over, as when the main thread is
+        // preempted there. The new connection must not get payloads before its
+        // HandleReconnect: the native SDK queues its re-authentication then, and
+        // ws-api refuses requests that arrive ahead of it. TestHooks.AfterDrain
+        // (added by run.sh to the test build) makes the reconnect land there.
+        private static void PayloadsWaitForReconnect()
+        {
+            using (var server = new LoopbackServer(2, async (index, connection) =>
+            {
+                if (index == 0) await connection.SendClose();
+            }))
+            using (var transport = new WebsocketTransport())
+            {
+                var sdk = new SDK();
+                Start(transport, server, sdk);
+                WaitUntil(() => !transport.IsConnected, "the first connection has closed");
+                transport.Update(sdk);
+                int before = sdk.PayloadRequests;
+
+                bool armed = true;
+                TestHooks.AfterDrain = () =>
+                {
+                    if (!armed) return;
+                    armed = false;
+                    WaitUntil(() => transport.IsConnected, "the transport has reconnected");
+                };
+                try { transport.Update(sdk); }
+                finally { TestHooks.AfterDrain = null; }
+                if (sdk.PayloadRequests != before && !sdk.Events.Contains("reconnect"))
+                    throw new Exception("payloads were requested before HandleReconnect");
+
+                transport.Update(sdk);
+                Expect(sdk, "reconnect");
+                if (sdk.PayloadRequests == before) throw new Exception("payloads were not requested after the reconnect");
             }
         }
 
