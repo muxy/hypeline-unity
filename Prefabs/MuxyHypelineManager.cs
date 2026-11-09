@@ -10,8 +10,11 @@ public class MuxyHypelineManager : MonoBehaviour
 {
 
     [InspectorName("Game ID")]
-    [Tooltip("The ID for this game. Set it before Play mode; use gamelink-testing while testing.")]
-    public String GameID = "gamelink-testing";
+    [Tooltip("Your game's Hypeline Game ID from https://dev.muxy.io/games. Set it before Play mode. gamelink-testing is a shared test ID for trying the samples; create your own Game ID before release.")]
+    public String GameID = HypelineGameId.SharedTestId;
+
+    [Tooltip("Hypeline backend to connect to. Both stages use encrypted wss:// connections.")]
+    public Stage Stage = Stage.Production;
 
     [SerializeField] private GameMetadata GameMetadata = new GameMetadata();
     [Tooltip("Optional logo texture. It is encoded as a PNG data URI when game metadata is published.")]
@@ -79,7 +82,7 @@ public class MuxyHypelineManager : MonoBehaviour
             }
             if (Response.HasError)
             {
-                Debug.LogWarning("Hypeline: Twitch authentication failed. Request a new code and check the extension configuration.");
+                Debug.LogWarning("Hypeline: Twitch authentication failed. Request a new code and check the extension configuration. An unregistered, suspended or archived Game ID (\"" + GameID + "\") is also rejected at sign-in; select MuxyHypelineManager and use Check next to Game ID in the Inspector.");
                 PlayerPrefs.SetString(PLAYER_PREFS_REFRESH_TOKEN, "");
                 OnAuthentication.Invoke(Response);
                 return;
@@ -117,24 +120,28 @@ public class MuxyHypelineManager : MonoBehaviour
         DidOpenAndRun = false;
         if (SDK != null)
         {
-            SDK.StopWebsocketTransport();
+            SDK.Dispose();
             SDK = null;
         }
     }
 
     protected void OnEnable()
     {
-        if (String.IsNullOrWhiteSpace(GameID)) GameID = "gamelink-testing";
         if (SDK == null)
         {
-            SDK = new SDK(GameID);
+            SDK = new SDK(ResolveGameID());
             DidOpenAndRun = false;
             SetupCallbacks();
             CheckForRefreshToken();
         }
 
-        if (GameTexts.Count > 0) SubmitGameTexts();
-        if (GameActions.Count > 0) SubmitGameActions();
+        // Texts and actions are published by the authentication callback;
+        // the server rejects them before login.
+        if (IsAuthenticated())
+        {
+            SubmitGameTexts();
+            SubmitGameActions();
+        }
     }
 
 
@@ -146,8 +153,9 @@ public class MuxyHypelineManager : MonoBehaviour
             ResetConnection();
         }
         transportStartedAt = Time.realtimeSinceStartup;
-        Debug.Log("Hypeline: Starting the Twitch connection.");
-        SDK.RunInProduction();
+        Debug.Log("Hypeline: Starting the Twitch connection (" + Stage + ").");
+        if (Stage == Stage.Sandbox) SDK.RunInSandbox();
+        else SDK.RunInProduction();
         DidOpenAndRun = true;
     }
 
@@ -184,14 +192,24 @@ public class MuxyHypelineManager : MonoBehaviour
         lastTransportState = HypelineTransportState.Disconnected;
         pinStartedAt = -1f;
         transportStartedAt = -1f;
-        if (previous != null) previous.StopWebsocketTransport();
+        if (previous != null) previous.Dispose();
         if (isActiveAndEnabled)
         {
-            if (String.IsNullOrWhiteSpace(GameID)) GameID = "gamelink-testing";
-            SDK = new SDK(GameID);
+            SDK = new SDK(ResolveGameID());
             SetupCallbacks();
         }
         Debug.Log("Hypeline: Connection reset. Enter a new Twitch code to retry.");
+    }
+
+    /// <summary>Normalizes GameID (trimmed, lower case) and falls back to the shared test ID when empty.</summary>
+    private string ResolveGameID()
+    {
+        string normalized = HypelineGameId.Normalize(GameID);
+        if (normalized.Length == 0) normalized = HypelineGameId.SharedTestId;
+        else if (!HypelineGameId.IsValidFormat(normalized))
+            Debug.LogWarning("Hypeline: Game ID \"" + normalized + "\" is not a valid Game ID; sign-in will be rejected. Use the ID shown at " + HypelineGameId.GamesPageUrl + ".");
+        GameID = normalized;
+        return normalized;
     }
 
     public void AuthenticateWithPIN(String PIN)
@@ -218,10 +236,12 @@ public class MuxyHypelineManager : MonoBehaviour
         get { return SDK == null ? HypelineTransportState.Disconnected : SDK.TransportState; }
     }
 
+    /// <summary>Signs out, clears the saved session and prepares a fresh connection for a new code.</summary>
     public void Deauthenticate()
     {
         ClearSavedSession();
         if (SDK != null) SDK.Deauthenticate();
+        ResetConnection();
     }
 
     public void AddGameText(GameText Text)
@@ -234,8 +254,10 @@ public class MuxyHypelineManager : MonoBehaviour
         GameTexts.Clear();
     }
 
+    /// <summary>Publishes the game texts now if signed in; otherwise they are published after login.</summary>
     public void SubmitGameTexts()
     {
+        if (!IsAuthenticated()) return;
         SDK.SetGameTexts(GameTexts.ToArray());
     }
 
@@ -247,13 +269,13 @@ public class MuxyHypelineManager : MonoBehaviour
     public void SetGameTextAt(GameText Text, int Index)
     {
         GameTexts[Index] = Text;
-        SDK.SetGameTexts(GameTexts.ToArray());
+        SubmitGameTexts();
     }
 
     public void RemoveGameTextAt(int Index)
     {
         GameTexts.RemoveAt(Index);
-        SDK.SetGameTexts(GameTexts.ToArray());
+        SubmitGameTexts();
     }
 
     public GameAction GetGameActionAt(int Index)
@@ -281,8 +303,13 @@ public class MuxyHypelineManager : MonoBehaviour
         GameActions.RemoveAt(Index);
     }
 
+    /// <summary>
+    /// Publishes the action list now if signed in; otherwise it is published after login.
+    /// Publishing resets each action's remaining count on the server to its Count.
+    /// </summary>
     public void SubmitGameActions()
     {
+        if (!IsAuthenticated()) return;
         SDK.SetGameActions(GameActions.ToArray());
     }
 
@@ -296,19 +323,47 @@ public class MuxyHypelineManager : MonoBehaviour
         return PollConfiguration;
     }
 
+    /// <summary>
+    /// Starts the configured poll. Updates go to the configuration's OnPollUpdate
+    /// delegate and then to this manager's OnPollUpdate event.
+    /// </summary>
     public void StartPoll()
     {
-        SDK.StartPoll(PollConfiguration);
+        if (!IsAuthenticated())
+        {
+            Debug.LogWarning("Hypeline: Sign in before starting a poll.");
+            return;
+        }
+
+        PollConfiguration source = PollConfiguration;
+        PollConfiguration.OnUpdateDelegate userCallback = source.OnPollUpdate;
+        int generation = connectionGeneration;
+        PollConfiguration bridged = new PollConfiguration
+        {
+            Prompt = source.Prompt,
+            Location = source.Location,
+            Mode = source.Mode,
+            Options = new List<string>(source.Options),
+            DurationInSeconds = source.DurationInSeconds,
+            OnPollUpdate = update =>
+            {
+                if (generation != connectionGeneration) return;
+                if (userCallback != null) userCallback(update);
+                OnPollUpdate.Invoke(update);
+            }
+        };
+        SDK.StartPoll(bridged);
     }
 
     public void StopPoll()
     {
+        if (SDK == null) return;
         SDK.StopPoll();
     }
     public void SetGameMetadata(GameMetadata Metadata)
     {
         GameMetadata = Metadata;
-        SDK.SetGameMetadata(BuildGameMetadata());
+        if (IsAuthenticated()) SDK.SetGameMetadata(BuildGameMetadata());
     }
 
     private GameMetadata BuildGameMetadata()
@@ -344,11 +399,13 @@ public class MuxyHypelineManager : MonoBehaviour
 
     public void AcceptGameAction(GameActionUsed Used, string Description)
     {
+        if (SDK == null) { Debug.LogWarning("Hypeline: No active connection; the action was not accepted."); return; }
         SDK.AcceptGameAction(Used, Description);
     }
 
     public void RefundGameAction(GameActionUsed Used, string Description)
     {
+        if (SDK == null) { Debug.LogWarning("Hypeline: No active connection; the action was not refunded."); return; }
         SDK.RefundGameAction(Used, Description);
     }
 
@@ -358,6 +415,6 @@ public class MuxyHypelineManager : MonoBehaviour
         {
             Action.State = State;
         }
-        SDK.SetGameActions(GameActions.ToArray());
+        SubmitGameActions();
     }
 }

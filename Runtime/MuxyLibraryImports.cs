@@ -256,7 +256,7 @@ namespace MuxyHypeline.Imports
         public static extern RequestId MGW_SDK_AuthenticateWithRefreshToken(Schema.GatewaySDK SDK, [MarshalAs(NativeMarshalling.Utf8String)] String Refresh, GatewayAuthenticateResponseDelegate Delegate, VoidPtr User);
 
         [DllImport("cgamelink.dll", EntryPoint = "MGW_SDK_Deauthenticate")]
-        public static extern RequestId MGW_SDK_Deauthenticate(Schema.GatewaySDK SDK);
+        public static extern void MGW_SDK_Deauthenticate(Schema.GatewaySDK SDK);
 
         [DllImport("cgamelink.dll", EntryPoint = "MGW_SDK_ReceiveMessage")]
         public static extern UInt32 MGW_SDK_ReceiveMessage(Schema.GatewaySDK SDK, byte[] Message, uint BytesLength);

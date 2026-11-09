@@ -69,7 +69,8 @@
 <section id="before-you-start"><div class="section-label">GETTING STARTED</div><h2>Before you start</h2>
 <p>You need:</p>
 <ul class="check-list"><li>A Unity project using Unity 2020.3 or newer and a desktop target. Test your own target, architecture, and scripting backend before release; package import alone does not establish platform support.</li><li>Git installed and available to Unity for installation from a Git URL. Alternatively, obtain a local checkout of the SDK and select its <code>package.json</code> in Package Manager; keep that folder in place.</li><li>A Twitch broadcaster account that can install and activate the Muxy Gateway extension on its channel.</li><li>A separate viewer account or browser session to test the audience experience.</li></ul>
-<p>This guide uses the testing Game ID <code>gamelink-testing</code>. Before connecting, confirm that this exact ID is listed under <strong>Linked Games</strong> in the broadcaster&#x27;s extension configuration. For your own game, use its assigned ID and ensure it matches the extension configuration.</p>
+<p><strong>Create a Game ID for your game.</strong> Sign in at <a href="https://dev.muxy.io/games">dev.muxy.io/games</a>, select <strong>New game</strong>, enter your game&#x27;s name, accept the terms, and create it. The new ID works immediately in sandbox and production. Game IDs use 3–64 lowercase letters, numbers, and single hyphens, and they are permanent: choose one you are happy to keep, because it cannot be renamed later. You will copy this ID into the manager&#x27;s <strong>Game ID</strong> field in step 2.</p>
+<p>To try the samples first, you can use the shared test ID <code>gamelink-testing</code> instead. Create your own Game ID before release. If the broadcaster&#x27;s extension configuration lists your Game ID under <strong>Linked Games</strong>, make sure it is allowed there.</p>
 </section>
 
 <section id="install"><div class="section-label">STEP 01</div><h2>Install the SDK</h2>
@@ -80,7 +81,7 @@
 
 <section id="scene"><span id="hypeline-prefabs" class="anchor-alias"></span><div class="section-label">STEP 02</div><h2>Set up your scene</h2>
 <p>Make these changes outside Play mode and save the scene.</p>
-<ol class="steps" start="1"><li>Drag <strong>MuxyHypelineManager</strong> from <strong>Packages → Muxy Hypeline → Prefabs</strong> into the Hierarchy. If the scene already has a manager, reuse it; keep only one active. The imported demo scripts are in <code>Assets/Samples/Muxy Hypeline/0.0.1/DemoMaterials</code>; the manager prefab is in the package&#x27;s Prefabs folder.</li><li>Select the scene&#x27;s manager. Set <strong>Game ID</strong> to <code>gamelink-testing</code>. Under <strong>Game Metadata</strong>, enter the game name viewers should see. Leave <strong>Theme</strong> blank for the default.</li><li>Drag <strong>MuxyHypelineMenu</strong> into the scene. Assign the scene manager to its <strong>Hypeline Manager</strong> field. Adjust its button position and size to fit your game menu.</li></ol>
+<ol class="steps" start="1"><li>Drag <strong>MuxyHypelineManager</strong> from <strong>Packages → Muxy Hypeline → Prefabs</strong> into the Hierarchy. If the scene already has a manager, reuse it; keep only one active. The imported demo scripts are in <code>Assets/Samples/Muxy Hypeline/0.0.1/DemoMaterials</code>; the manager prefab is in the package&#x27;s Prefabs folder.</li><li>Select the scene&#x27;s manager. Set <strong>Game ID</strong> to your game&#x27;s ID from <a href="https://dev.muxy.io/games">dev.muxy.io/games</a> (the Inspector&#x27;s <strong>Get a Game ID</strong> button opens that page), or keep <code>gamelink-testing</code> to try the samples. Select <strong>Check</strong> next to the field and confirm the Inspector reports the game as registered; an unregistered, suspended, or archived ID is rejected at sign-in. Under <strong>Game Metadata</strong>, enter the game name viewers should see. Leave <strong>Theme</strong> blank for the default.</li><li>Drag <strong>MuxyHypelineMenu</strong> into the scene. Assign the scene manager to its <strong>Hypeline Manager</strong> field. Adjust its button position and size to fit your game menu.</li></ol>
 <figure class="capture"><a class="capture-zoom" href="assets/screenshots/review-menu-manager.jpg" target="_blank" rel="noopener" aria-label="Enlarge screenshot: Menu and manager assignment in Unity"><img src="assets/screenshots/review-menu-manager.jpg" alt="Menu and manager assignment in Unity" loading="lazy"></a><figcaption>Select the menu in the Hierarchy and assign the scene manager in the Inspector.</figcaption></figure>
 <ol class="steps" start="4"><li><strong>Add the required in-game alert.</strong> Drag <strong>MuxyHypelineInteractionAlert</strong> from <strong>Packages → Muxy Hypeline → Prefabs</strong> into the scene and assign the same scene manager to its <strong>Hypeline Manager</strong> field. Keep the alert GameObject active and position it where it remains readable over your game and broadcast HUD. If the card is hidden behind another Canvas, enable <strong>Override Sorting</strong> on the alert Canvas and set its <strong>Sort Order</strong> above the HUD, then repeat Test Alert. Its local <strong>Test Alert</strong> preview checks appearance and sound; it does not send or fulfill a viewer action. The visible alert is required; sound is optional and requires an active Audio Listener and unmuted audio.</li><li>Ensure the scene has one active <strong>EventSystem</strong>, with an input module compatible with the project&#x27;s input settings. For a new-Input-System-only project, use <strong>Input System UI Input Module</strong>. The Hypeline menu does not create an EventSystem.</li><li>On the manager, add a <strong>Game Texts</strong> element with <strong>Label</strong> = <code>Health</code>, <strong>Value</strong> = <code>50</code>, and <strong>Icon</strong> = <code>fa-solid:heart</code>.</li><li>Create an empty GameObject named <code>HypelineActionDemo</code>. Add the imported <strong>Hypeline Action Demo</strong> component and assign the scene manager to its <strong>Hypeline Manager</strong> field.</li><li>The demo&#x27;s debug buttons use legacy IMGUI input. If the project uses only the new Input System, set <strong>Player → Other Settings → Active Input Handling</strong> to <strong>Both</strong> and restart Unity if prompted. This is needed for the demo controls, not the Hypeline panel.</li></ol>
 <div class="checkpoint"><span aria-hidden="true">✓</span><p><strong>Checkpoint:</strong> One active manager and EventSystem are present; the menu, required interaction alert, and demo all reference that manager. The alert is enabled and visible within the game view. Edit the scene instances, not the read-only package prefab assets.</p></div>
@@ -100,7 +101,7 @@
 </section>
 
 <section id="authenticate"><div class="section-label">STEP 05</div><h2>Connect your Twitch channel</h2>
-<ol class="steps" start="1"><li>In the broadcaster&#x27;s Twitch Creator Dashboard, <a href="https://dashboard.twitch.tv/extensions/i575hs2x9lb3u8hqujtezit03w1740">install and activate the Muxy Gateway extension</a> in a supported slot.</li><li>Open the extension&#x27;s <strong>Configure</strong> view. Confirm that <strong>Linked Games</strong> contains the exact Game ID configured on the manager.</li><li>Select <strong>Get New Code</strong>. Codes expire after five minutes.</li><li>In Play mode, open <strong>Stream Interactivity</strong>, enter the six-character code, and select <strong>Connect</strong>.</li><li>Wait for <strong>You are connected</strong> and the green fox. If the code expires, request a fresh one. Do not share codes or tokens.</li></ol>
+<ol class="steps" start="1"><li>In the broadcaster&#x27;s Twitch Creator Dashboard, <a href="https://dashboard.twitch.tv/extensions/i575hs2x9lb3u8hqujtezit03w1740">install and activate the Muxy Gateway extension</a> in a supported slot.</li><li>Open the extension&#x27;s <strong>Configure</strong> view. If <strong>Linked Games</strong> lists the Game ID configured on the manager, confirm it is allowed.</li><li>Select <strong>Get New Code</strong>. Codes expire after five minutes.</li><li>In Play mode, open <strong>Stream Interactivity</strong>, enter the six-character code, and select <strong>Connect</strong>.</li><li>Wait for <strong>You are connected</strong> and the green fox. If the code expires, request a fresh one. Do not share codes or tokens.</li></ol>
 <figure class="capture"><a class="capture-zoom" href="assets/screenshots/review-connected.png" target="_blank" rel="noopener" aria-label="Enlarge screenshot: Hypeline connection form and successful Twitch connection"><img src="assets/screenshots/review-connected.png" alt="Hypeline connection form and successful Twitch connection" loading="lazy"></a><figcaption>Steps 5.4–5.5 in one panel: enter the six-character code and select Connect; successful authentication displays “You are connected” with the green fox. This capture shows the connected state, so Connect is disabled.</figcaption></figure>
 <div class="checkpoint"><span aria-hidden="true">✓</span><p><strong>Checkpoint:</strong> The channel is connected. Close the connection panel so the game and alert area can be seen. Authentication alone does not yet prove viewer delivery, fulfillment, or an in-game alert.</p></div>
 </section>
@@ -164,9 +165,14 @@ visible in-game viewer-action alert is a required part of the integration.
    fixed release. Add the Muxy.Hypeline assembly reference if my assembly needs
    it. Inspect the actual installed package rather than assuming types exist.
 
-2. **Set up the scene.** Reuse or add MuxyHypelineManager. For the tutorial use
-   Game ID `gamelink-testing` only if it matches Linked Games in the broadcaster's
-   extension configuration; otherwise use my assigned, matching Game ID. Set
+2. **Set up the scene.** Reuse or add MuxyHypelineManager. Set its Game ID to
+   my game's own ID from https://dev.muxy.io/games if I give you one (I create
+   the game there and copy its ID; IDs are permanent). Otherwise use the shared
+   test ID `gamelink-testing`, which is fine for the samples, and remind me to
+   create my own Game ID before release. Use the Inspector's Check button next
+   to Game ID to confirm the ID is registered and active, and report its result.
+   If the broadcaster's extension configuration lists the Game ID under Linked
+   Games, confirm it is allowed there. Set
    the game name and leave Theme blank for the default. Add MuxyHypelineMenu and
    the required MuxyHypelineInteractionAlert, both referencing that manager.
    Keep the alert active and readable over the game and broadcast HUD. If the
@@ -194,7 +200,9 @@ visible in-game viewer-action alert is a required part of the integration.
    still verify the alert with a real action in step 6.
 
 5. **Connect Twitch.** Use the broadcaster channel/configuration I specify.
-   Confirm the extension is installed, active, and linked to the same Game ID.
+   Confirm the extension is installed and active, and that the Game ID is not
+   disallowed under Linked Games. If sign-in fails, check the Game ID with the
+   Inspector's Check button before requesting another code.
    Use a fresh six-character PIN from that configuration; it expires after five
    minutes. If I authorize use of the open configuration tab, request another
    code there when needed. Enter it in the game's Stream Interactivity panel,
@@ -252,7 +260,7 @@ checkpoints have been verified.</code></pre><!-- /example:install-hypeline.md --
 </section>
 
 <section id="troubleshooting"><div class="section-label">GETTING STARTED</div><h2>Troubleshooting</h2>
-<ul class="check-list"><li><strong>Package does not install:</strong> Confirm Git is installed and accessible to Unity, check the URL and network access, and read the first Package Manager or Console error. For a disk install, select the checkout&#x27;s <code>package.json</code> and keep the checkout in place.</li><li><strong>SDK types are missing:</strong> Resolve package compilation errors first. If your script uses a custom assembly definition, reference <code>Muxy.Hypeline</code>.</li><li><strong>Cannot type the PIN:</strong> Check for exactly one active EventSystem and an input module compatible with the project&#x27;s active input system.</li><li><strong>Authentication fails:</strong> Request a fresh code and check that the extension is active and the manager&#x27;s Game ID matches <strong>Linked Games</strong>. Review the <code>Hypeline:</code> Console status messages; keep PINs and tokens out of reports.</li><li><strong>Connected but no action appears:</strong> Confirm the extension is active on the correct channel, the viewer can see its placement, and the action is registered, available, and has a usable count.</li><li><strong>Action appears but is disabled:</strong> Check its runtime Game Action State, the current gameplay state, and whether Unity has processed a frame after changing availability. A serialized Available state can be replaced by runtime gating while loading or paused.</li><li><strong>Action appears but does nothing:</strong> Check the <code>healthpack</code> ID and the dynamic <code>HypelineActionDemo.OnHealthpack</code> binding. Check the Console for handler errors.</li><li><strong>Health changes but no in-game alert appears:</strong> In the prefab path, check that <code>MuxyHypelineInteractionAlert</code> is active, references the same manager, and sits within the visible game view. Run its local <strong>Test Alert</strong>. If the preview card is hidden behind another Canvas, enable Override Sorting on the alert Canvas and raise its Sort Order above the game HUD. Then repeat a real viewer action. In the C# path, use the current <code>HypelineCodeDemo.cs</code> with <code>DrawViewerActionAlert()</code> and retain that code when adapting the sample. The persistent status line and Twitch Game Info value do not replace the timed in-game alert.</li><li><strong>Editor works but the player fails:</strong> Check the first player-log error, native plugin import settings, architecture, scripting backend, and stripping configuration. Test the actual player you plan to ship.</li></ul>
+<ul class="check-list"><li><strong>Package does not install:</strong> Confirm Git is installed and accessible to Unity, check the URL and network access, and read the first Package Manager or Console error. For a disk install, select the checkout&#x27;s <code>package.json</code> and keep the checkout in place.</li><li><strong>SDK types are missing:</strong> Resolve package compilation errors first. If your script uses a custom assembly definition, reference <code>Muxy.Hypeline</code>.</li><li><strong>Cannot type the PIN:</strong> Check for exactly one active EventSystem and an input module compatible with the project&#x27;s active input system.</li><li><strong>Authentication fails:</strong> Request a fresh code and check that the extension is active. Select the manager and use <strong>Check</strong> next to <strong>Game ID</strong>: an unregistered, suspended, or archived Game ID is rejected at sign-in, as is a game the broadcaster disallowed under <strong>Linked Games</strong>. Review the <code>Hypeline:</code> Console status messages; keep PINs and tokens out of reports.</li><li><strong>Connected but no action appears:</strong> Confirm the extension is active on the correct channel, the viewer can see its placement, and the action is registered, available, and has a usable count.</li><li><strong>Action appears but is disabled:</strong> Check its runtime Game Action State, the current gameplay state, and whether Unity has processed a frame after changing availability. A serialized Available state can be replaced by runtime gating while loading or paused.</li><li><strong>Action appears but does nothing:</strong> Check the <code>healthpack</code> ID and the dynamic <code>HypelineActionDemo.OnHealthpack</code> binding. Check the Console for handler errors.</li><li><strong>Health changes but no in-game alert appears:</strong> In the prefab path, check that <code>MuxyHypelineInteractionAlert</code> is active, references the same manager, and sits within the visible game view. Run its local <strong>Test Alert</strong>. If the preview card is hidden behind another Canvas, enable Override Sorting on the alert Canvas and raise its Sort Order above the game HUD. Then repeat a real viewer action. In the C# path, use the current <code>HypelineCodeDemo.cs</code> with <code>DrawViewerActionAlert()</code> and retain that code when adapting the sample. The persistent status line and Twitch Game Info value do not replace the timed in-game alert.</li><li><strong>Editor works but the player fails:</strong> Check the first player-log error, native plugin import settings, architecture, scripting backend, and stripping configuration. Test the actual player you plan to ship.</li></ul>
 </section>
 
 <section id="other-examples"><div class="section-label">OPTIONAL EXAMPLES</div><h2>Optional: explore other examples</h2>
@@ -330,8 +338,7 @@ public class HypelineActionDemo : MonoBehaviour
         config.Options.Add("Ice Cave");
         config.OnPollUpdate = update =&gt;
         {
-            // The manager does not forward this delegate automatically.
-            HypelineManager.OnPollUpdate.Invoke(update);
+            // The manager also forwards every update to its OnPollUpdate event.
             if (!update.IsFinal) return;
             status = update.Count &gt; 0 &amp;&amp; update.Winner &gt;= 0 &amp;&amp;
                      update.Winner &lt; config.Options.Count
@@ -427,13 +434,15 @@ HypelineManager.SetGameMetadata(metadata);</code></pre><p>Here <code>yourReadabl
     <section id="code-integration">
       <div class="section-label">ALTERNATIVE PATH</div><h2>Integrate directly with C#</h2>
       <p>Use this path for custom authentication and game UI. Create a separate scene without <code>MuxyHypelineManager</code> or its UI prefabs. Import the <b>DemoMaterials</b> sample from the Muxy Hypeline package in Package Manager, attach its <code>HypelineCodeDemo.cs</code> to one active GameObject, and enter Play mode. If you previously downloaded this script, keep only one copy of the class. The demo draws a minimal PIN field, status panel, and required six-second viewer-action alert using Unity IMGUI. Its healthpack handler shows the viewer name and action after applying the effect and accepting the transaction. No additional manager or alert prefab is needed for this alternative. Complete the same visible-alert checkpoint in step 6 and preserve the alert when adapting the code in step 7. If the project uses only the new Input System, set <b>Player → Other Settings → Active Input Handling</b> to <b>Both</b> and restart the Editor if prompted.</p>
-      <div class="table-scroll"><table><thead><tr><th>Lifecycle step</th><th>Your code owns</th></tr></thead><tbody><tr><td>Initialize</td><td>Create <code>new SDK(gameID)</code> once per active owner.</td></tr><tr><td>Connect</td><td>Call <code>RunInProduction()</code>. Authentication is a separate step.</td></tr><tr><td>Process events</td><td>Call <code>sdk.Update()</code> every frame on the Unity main thread.</td></tr><tr><td>Authenticate</td><td>Call <code>AuthenticateWithPIN</code> and check <code>response.HasError</code>.</td></tr><tr><td>Publish</td><td>After success, register callbacks and send metadata, actions, and texts.</td></tr><tr><td>Shut down</td><td>Call <code>StopWebsocketTransport()</code> when the owner is disabled.</td></tr></tbody></table></div>
+      <div class="table-scroll"><table><thead><tr><th>Lifecycle step</th><th>Your code owns</th></tr></thead><tbody><tr><td>Initialize</td><td>Create <code>new SDK(gameID)</code> once per active owner, with your Game ID from <a href="https://dev.muxy.io/games">dev.muxy.io/games</a> (or <code>gamelink-testing</code> to try the sample). <code>HypelineGameId.Normalize</code> trims and lowercases a typed ID.</td></tr><tr><td>Connect</td><td>Call <code>RunInProduction()</code>. Authentication is a separate step.</td></tr><tr><td>Process events</td><td>Call <code>sdk.Update()</code> every frame on the Unity main thread.</td></tr><tr><td>Authenticate</td><td>Call <code>AuthenticateWithPIN</code> and check <code>response.HasError</code>.</td></tr><tr><td>Publish</td><td>After success, register callbacks and send metadata, actions, and texts.</td></tr><tr><td>Shut down</td><td>Call <code>StopWebsocketTransport()</code> when the owner is disabled.</td></tr></tbody></table></div>
       <details class="code-details"><summary>View the complete code integration <span>C#</span></summary><div class="code-heading"><span>HypelineCodeDemo.cs</span><a href="examples/HypelineCodeDemo.cs" download>Download</a></div><!-- example:HypelineCodeDemo.cs --><pre><code class="language-csharp">using MuxyHypeline;
 using UnityEngine;
 
 // Alternative to the prefab manager. Do not run both integrations together.
 public class HypelineCodeDemo : MonoBehaviour
 {
+    // Your Game ID from https://dev.muxy.io/games. gamelink-testing is a shared
+    // test ID for trying this sample; create your own Game ID before release.
     [SerializeField] private string gameID = "gamelink-testing";
     private SDK sdk;
     private string pin = "";
@@ -447,7 +456,9 @@ public class HypelineCodeDemo : MonoBehaviour
 
     private void OnEnable()
     {
-        sdk = new SDK(gameID);
+        // Game IDs are lower case; trim and lowercase whatever was typed in the Inspector.
+        string id = HypelineGameId.Normalize(gameID);
+        sdk = new SDK(id.Length &gt; 0 ? id : HypelineGameId.SharedTestId);
         sdk.RunInProduction();
     }
 
@@ -473,7 +484,7 @@ public class HypelineCodeDemo : MonoBehaviour
             pin = "";
             if (response.HasError)
             {
-                status = "Authentication failed. Request a fresh PIN and retry.";
+                status = "Authentication failed. Request a fresh PIN and retry, and check that the Game ID is registered and active.";
                 return;
             }
             PublishSetup();
@@ -604,7 +615,9 @@ public class HypelineCodeDemo : MonoBehaviour
 
     private void OnDisable()
     {
-        if (sdk != null) sdk.StopWebsocketTransport();
+        if (sdk == null) return;
+        // Dispose stops the connection and releases the native SDK and its callbacks.
+        sdk.Dispose();
         sdk = null;
         authenticationPending = false;
         pin = "";
