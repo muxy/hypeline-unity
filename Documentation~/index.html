@@ -125,7 +125,7 @@
 <p>Give your coding agent this Markdown prompt along with your Unity project. It follows steps 1–7, checks existing setup before making changes, and treats the visible in-game viewer-action alert as a required checkpoint.</p>
 <p>Open your project in the agent’s workspace, copy the prompt below, and paste it into your agent chat. You can also download the <code>.md</code> file and attach it. Supply your project path or Twitch channel if the agent cannot determine them from your current session.</p>
 <div class="prompt-actions"><button class="button primary" type="button" data-copy-target="agent-install-prompt">Copy install prompt</button><a class="button secondary" href="prompts/install-hypeline.md" download>Download .md <span aria-hidden="true">↓</span></a></div>
-<p>The package also includes Editor tools an agent can run without the Unity Editor UI: <strong>setup</strong> adds and wires the prefabs, Game Texts and viewer actions in a scene, and <strong>doctor</strong> checks the result. Both take a JSON job file and write a JSON report. The install prompt tells the agent to use them; the reference is <a href="agents.md">Editor tools for coding agents</a>.</p>
+<p>With one approval from you, an agent can do most of the integration itself: register your Game ID on the developer portal, add and wire the prefabs, Game Texts and viewer actions with the package's Editor tools, and test the game in the Hypeline sandbox by signing it in and sending it viewer actions. The install prompt tells the agent to do so; the reference it follows is <a href="agents.md">Hypeline for coding agents</a>. Going live on your Twitch channel is still yours to do.</p>
 <div class="callout"><strong>The same required checkpoints</strong><p>The agent must verify the real viewer action, in-game alert, transaction acknowledgment, and extension update. Local previews and unverified steps must be reported clearly. You may need to complete a Twitch or Unity interaction when the agent cannot access it.</p></div>
 <details class="code-details"><summary>Read the complete install prompt <span>Markdown</span></summary><!-- example:install-hypeline.md --><pre><code id="agent-install-prompt" class="language-markdown"># Install Muxy Hypeline in my Unity project
 
@@ -152,13 +152,23 @@ visible in-game viewer-action alert is a required part of the integration.
   use the guide's complete HypelineCodeDemo.cs in a separate test scene without
   the prefab manager/menu/alert. Keep its built-in viewer-action alert. Do not
   combine both paths or register duplicate fulfillment handlers.
+- Read https://muxy.github.io/hypeline-unity/agents.md before you start. It
+  describes what you can do yourself with one approval from me.
+- If the developer portal offers agent access, ask me to approve it once,
+  then register or look up my Game ID through it. A Game ID is permanent:
+  agree the ID and the game's name with me before you create one. Keep the
+  access token out of source, commits, logs, screenshots, and reports.
 - If the installed package has `Editor/HypelineAgent.cs`, use its setup and
   doctor tools for steps 2 and 3 instead of editing scene files by hand, and
   run the doctor again after any later scene change. They take a JSON job file
-  and write a JSON report; follow
-  https://muxy.github.io/hypeline-unity/agents.md. Include each report's
-  unresolved findings in your result. The tools do not replace the local
-  previews or the live checks in steps 4-6.
+  and write a JSON report. Include each report's unresolved findings in your
+  result.
+- If the portal offers sandbox testing, use it after step 4: sign the game in
+  to the sandbox, send each action as a test viewer, and confirm the handler
+  ran and each transaction was accepted or refunded as intended. Set the
+  manager back to the production stage afterwards. Report this as a sandbox
+  check. It does not replace the local previews in step 4 or the live Twitch
+  checks in steps 5 and 6.
 - Use available Unity, filesystem, and browser tools. Make persistent scene
   changes outside Play mode and save them. If a UI operation needs a file-based
   equivalent, explain it and verify Unity imports the result. If a step needs
@@ -174,10 +184,10 @@ visible in-game viewer-action alert is a required part of the integration.
    it. Inspect the actual installed package rather than assuming types exist.
 
 2. **Set up the scene.** Reuse or add MuxyHypelineManager. Set its Game ID to
-   my game's own ID from https://dev.muxy.io/games if I give you one (I create
-   the game there and copy its ID; IDs are permanent). Otherwise use the shared
-   test ID `gamelink-testing`, which is fine for the samples, and remind me to
-   create my own Game ID before release. Use the Inspector's Check button next
+   my game's own ID: the one I give you from https://dev.muxy.io/games, or one
+   you register for me through the portal after agreeing it with me (IDs are
+   permanent). Otherwise use the shared test ID `gamelink-testing`, which is
+   fine for the samples, and remind me to create my own Game ID before release. Use the Inspector's Check button next
    to Game ID to confirm the ID is registered and active, and report its result.
    If the broadcaster's extension configuration lists the Game ID under Linked
    Games, confirm it is allowed there. Set

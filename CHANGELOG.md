@@ -2,6 +2,7 @@
 - Add Editor tools for coding agents and scripts: `setup` adds and wires the manager, menu, interaction alert and EventSystem in a scene, sets the Game ID, name and stage, and adds Game Texts and viewer actions bound to handler methods; `doctor` checks a scene and changes nothing. Both take a JSON job file and write a JSON report. Run them in batch mode with `-executeMethod MuxyHypeline.HypelineAgent.Run -hypelineJob <file> -hypelineReport <file>`, or, with the project open in the Editor, by writing the job to `Library/Hypeline/jobs/<name>.job.json`. See `Documentation~/agents.md`.
 - Add **Tools > Muxy Hypeline > Check Active Scene**, which runs the same check and logs its findings to the Console.
 - The docs site now serves `agents.md` and `llms.txt`.
+- `agents.md` also covers the developer portal for agents: getting access with one approval from the developer, registering a Game ID, and testing a game in the sandbox with a test viewer. The install prompt tells an agent to use them where the portal offers them.
 
 [0.2.0] 2026/11/15
 Security and reliability
