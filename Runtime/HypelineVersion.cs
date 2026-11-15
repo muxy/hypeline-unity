@@ -3,6 +3,6 @@ namespace MuxyHypeline
 {
     class Constants
     {
-        public const string Version = "v0.0.0";
+        public const string Version = "v0.2.0";
     }
 }

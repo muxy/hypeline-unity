@@ -4,10 +4,12 @@ Let your live audience interact with your Unity game on Twitch.
 
 [Read the Hypeline Unity developer guide](https://muxy.github.io/hypeline-unity/) for installation, setup, viewer actions, and polls.
 
-Install the latest SDK from the main branch in Unity Package Manager using:
+Install release v0.2.0 in Unity Package Manager using:
 
 ```text
-https://github.com/muxy/hypeline-unity.git#main
+https://github.com/muxy/hypeline-unity.git#v0.2.0
 ```
+
+To track unreleased changes instead, replace `#v0.2.0` with `#main`.
 
 This repository initially incorporates the Hypeline SDK from `jrslyce/gateway-unity` commit `8802e45498df6ba7118a1f7a9e6c4aea72fceb95`. See `LICENSE.md` for the original SDK license.
