@@ -45,6 +45,7 @@ public class MuxyHypelineManager : MonoBehaviour
     // Private //
 
     private const string PLAYER_PREFS_REFRESH_TOKEN = "MuxyGatewayRefreshToken";
+    private string RefreshTokenKey => Stage == Stage.Staging ? PLAYER_PREFS_REFRESH_TOKEN + ".staging" : PLAYER_PREFS_REFRESH_TOKEN;
 
     private SDK SDK;
     private SDK.OnAuthenticateDelegate AuthCB;
@@ -83,13 +84,13 @@ public class MuxyHypelineManager : MonoBehaviour
             if (Response.HasError)
             {
                 Debug.LogWarning("Hypeline: Twitch authentication failed. Request a new code and check the extension configuration. An unregistered, suspended or archived Game ID (\"" + GameID + "\") is also rejected at sign-in; select MuxyHypelineManager and use Check next to Game ID in the Inspector.");
-                PlayerPrefs.SetString(PLAYER_PREFS_REFRESH_TOKEN, "");
+                PlayerPrefs.SetString(RefreshTokenKey, "");
                 OnAuthentication.Invoke(Response);
                 return;
             }
 
             Debug.Log("Hypeline: Twitch authentication succeeded.");
-            if (RememberSession) PlayerPrefs.SetString(PLAYER_PREFS_REFRESH_TOKEN, Response.RefreshToken);
+            if (RememberSession) PlayerPrefs.SetString(RefreshTokenKey, Response.RefreshToken);
             else ClearSavedSession();
 
             SDK.OnGameActionUsed(ActionCB);
@@ -105,7 +106,7 @@ public class MuxyHypelineManager : MonoBehaviour
     private void CheckForRefreshToken()
     {
         if (!RememberSession) return;
-        String RefreshToken = PlayerPrefs.GetString(PLAYER_PREFS_REFRESH_TOKEN, "");
+        String RefreshToken = PlayerPrefs.GetString(RefreshTokenKey, "");
         if (RefreshToken != "")
         {
             Debug.Log("Hypeline: Restoring the saved Twitch session.");
@@ -155,6 +156,7 @@ public class MuxyHypelineManager : MonoBehaviour
         transportStartedAt = Time.realtimeSinceStartup;
         Debug.Log("Hypeline: Starting the Twitch connection (" + Stage + ").");
         if (Stage == Stage.Sandbox) SDK.RunInSandbox();
+        else if (Stage == Stage.Staging) SDK.RunInStaging();
         else SDK.RunInProduction();
         DidOpenAndRun = true;
     }
@@ -228,7 +230,7 @@ public class MuxyHypelineManager : MonoBehaviour
     /// <summary>Remove the locally stored session without disconnecting the current session.</summary>
     public void ClearSavedSession()
     {
-        PlayerPrefs.DeleteKey(PLAYER_PREFS_REFRESH_TOKEN);
+        PlayerPrefs.DeleteKey(RefreshTokenKey);
     }
 
     public HypelineTransportState TransportState

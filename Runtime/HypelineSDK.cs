@@ -206,11 +206,17 @@ namespace MuxyHypeline
         }
 
         public Task RunInSandboxAsync() { ThrowIfDisposed(); return Transport.OpenAndRunInSandbox(this); }
+        public Task RunInStagingAsync() { ThrowIfDisposed(); return Transport.OpenAndRunInStaging(this); }
         public Task RunInProductionAsync() { ThrowIfDisposed(); return Transport.OpenAndRunInProduction(this); }
 
         public void RunInSandbox()
         {
             ObserveConnection(RunInSandboxAsync());
+        }
+
+        public void RunInStaging()
+        {
+            ObserveConnection(RunInStagingAsync());
         }
 
         public void RunInProduction()
@@ -225,7 +231,7 @@ namespace MuxyHypeline
             catch (Exception error)
             {
                 // Do not log endpoint query strings, payloads or credentials.
-                LogWarning("Hypeline transport could not start (" + error.GetType().Name + "). Await RunInProductionAsync/RunInSandboxAsync for details.");
+                LogWarning("Hypeline transport could not start (" + error.GetType().Name + "). Await the RunInProductionAsync, RunInSandboxAsync or RunInStagingAsync task for details.");
             }
         }
 
@@ -534,6 +540,17 @@ namespace MuxyHypeline
             Version v = ParseVersion(Constants.Version);
             string s = NativeString.StringFromUTF8AndDeallocate(Imported.MGW_SDK_GetProjectionProductionURL(Instance, "gateway-unity", v.Major, v.Minor, v.Patch));
             return s;
+        }
+
+        public String GetStagingURL()
+        {
+            // Keep the native SDK's protocol, extension and projection path.
+            string production = GetProductionURL();
+            var uri = new UriBuilder(production.Contains("://") ? production : "wss://" + production);
+            uri.Scheme = "wss";
+            uri.Host = "gamelink.staging.muxy.io";
+            uri.Port = -1;
+            return uri.Uri.AbsoluteUri;
         }
 
         public void HandleReconnect()

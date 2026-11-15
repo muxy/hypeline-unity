@@ -70,8 +70,8 @@ namespace MuxyHypeline
 
             CheckGameId(job, report, serialized);
             report.stage = ((Stage)serialized.FindProperty("Stage").enumValueIndex).ToString().ToLowerInvariant();
-            if (report.stage == "sandbox")
-                report.Info("sandbox_stage", "The manager connects to the sandbox.", "Set its Stage to Production before release.");
+            if (report.stage == "sandbox" || report.stage == "staging")
+                report.Info(report.stage + "_stage", "The manager connects to " + report.stage + ".", "Set its Stage to Production before release.");
 
             if (string.IsNullOrWhiteSpace(serialized.FindProperty("GameMetadata").FindPropertyRelative("Name").stringValue))
                 report.Warning("no_game_name", "The manager has no game name, so viewers cannot identify the game in the extension.", "Set Game Metadata > Name on the manager.");
@@ -89,6 +89,7 @@ namespace MuxyHypeline
 
         private static void CheckGameId(HypelineAgentJob job, HypelineReport report, SerializedObject serialized)
         {
+            Stage stage = (Stage)serialized.FindProperty("Stage").intValue;
             string raw = serialized.FindProperty("GameID").stringValue;
             string gameId = HypelineGameId.Normalize(raw);
             report.gameIdStatus = "not_checked";
@@ -97,7 +98,7 @@ namespace MuxyHypeline
             {
                 report.gameId = HypelineGameId.SharedTestId;
                 report.Warning("empty_game_id", "The manager's Game ID is empty, so it uses the shared test ID " + HypelineGameId.SharedTestId + ".",
-                    "Create a Game ID at " + HypelineGameId.GamesPageUrl + " and set it on the manager before release.");
+                    "Create a Game ID at " + HypelineGameId.GamesPageUrlForStage(stage) + " and set it on the manager before release.");
                 return;
             }
 
@@ -105,25 +106,25 @@ namespace MuxyHypeline
             if (!HypelineGameId.IsValidFormat(gameId))
             {
                 report.Error("invalid_game_id", "The manager's Game ID \"" + raw + "\" is not a valid Game ID, so sign-in will be rejected.",
-                    "Copy the ID from " + HypelineGameId.GamesPageUrl + ".");
+                    "Copy the ID from " + HypelineGameId.GamesPageUrlForStage(stage) + ".");
                 return;
             }
 
             if (HypelineGameId.IsSharedTestId(gameId))
                 report.Warning("shared_test_id", "The manager uses the shared test ID " + HypelineGameId.SharedTestId + ".",
-                    "Create a Game ID at " + HypelineGameId.GamesPageUrl + " and set it on the manager before release.");
+                    "Create a Game ID at " + HypelineGameId.GamesPageUrlForStage(stage) + " and set it on the manager before release.");
 
             if (job.offline) return;
 
             long code;
             string body, error;
-            Lookup(gameId, out code, out body, out error);
+            Lookup(gameId, stage, out code, out body, out error);
 
             if (code == 404)
             {
                 report.gameIdStatus = "not_registered";
                 report.Error("game_id_not_registered", "\"" + gameId + "\" is not registered, so sign-in will be rejected.",
-                    "Create it at " + HypelineGameId.GamesPageUrl + ", or correct the manager's Game ID.");
+                    "Create it at " + HypelineGameId.GamesPageUrlForStage(stage) + ", or correct the manager's Game ID.");
                 return;
             }
 
@@ -140,7 +141,7 @@ namespace MuxyHypeline
                 string detail = code == 0 ? (string.IsNullOrEmpty(error) ? "network error" : error)
                     : code == 200 ? "the answer was not a Game ID record"
                     : "HTTP " + code;
-                report.Warning("game_id_not_checked", "The Game ID could not be looked up on " + HypelineGameId.PortalUrl + " (" + detail + ").",
+                report.Warning("game_id_not_checked", "The Game ID could not be looked up on " + HypelineGameId.PortalUrlForStage(stage) + " (" + detail + ").",
                     "Check the network connection and run the check again, or set \"offline\" to true to skip the lookup.");
                 return;
             }
@@ -152,21 +153,21 @@ namespace MuxyHypeline
                     report.Info("game_id_unverified", "\"" + gameId + "\" is registered and accepted at sign-in. Muxy has not verified the game yet.", "");
             }
             else if (game.status == "suspended")
-                report.Error("game_id_suspended", "\"" + gameId + "\" is suspended by Muxy, so sign-in is rejected.", "See " + HypelineGameId.GamesPageUrl + " or contact Muxy.");
+                report.Error("game_id_suspended", "\"" + gameId + "\" is suspended by Muxy, so sign-in is rejected.", "See " + HypelineGameId.GamesPageUrlForStage(stage) + " or contact Muxy.");
             else if (game.status == "archived")
-                report.Error("game_id_archived", "\"" + gameId + "\" is archived, so sign-in is rejected.", "Its owner can restore it at " + HypelineGameId.GamesPageUrl + ".");
+                report.Error("game_id_archived", "\"" + gameId + "\" is archived, so sign-in is rejected.", "Its owner can restore it at " + HypelineGameId.GamesPageUrlForStage(stage) + ".");
             else
                 report.Warning("game_id_status", "\"" + gameId + "\" has the status \"" + game.status + "\"; sign-in may be rejected.", "");
         }
 
         /// <summary>Looks the Game ID up on the portal, waiting for the answer.</summary>
-        private static void Lookup(string gameId, out long code, out string body, out string error)
+        private static void Lookup(string gameId, Stage stage, out long code, out string body, out string error)
         {
             code = 0;
             body = null;
             error = null;
 
-            using (UnityWebRequest request = UnityWebRequest.Get(HypelineGameId.PublicLookupUrl(gameId)))
+            using (UnityWebRequest request = UnityWebRequest.Get(HypelineGameId.PublicLookupUrl(gameId, stage)))
             {
                 request.timeout = GameIdLookupTimeoutSeconds;
                 request.SetRequestHeader("Accept", "application/json");

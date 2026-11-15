@@ -16,10 +16,25 @@ namespace MuxyHypeline
         public const string PortalUrl = "https://dev.muxy.io";
         public const string GamesPageUrl = PortalUrl + "/games";
 
+        public static string PortalUrlForStage(Stage stage)
+        {
+            return stage == Stage.Staging ? "https://dev.staging.muxy.io" : PortalUrl;
+        }
+
+        public static string GamesPageUrlForStage(Stage stage)
+        {
+            return PortalUrlForStage(stage) + "/games";
+        }
+
         /// <summary>Public lookup for a Game ID; returns game_id, name, status and verified, or 404.</summary>
         public static string PublicLookupUrl(string id)
         {
-            return PortalUrl + "/api/public/games/" + Uri.EscapeDataString(Normalize(id));
+            return PublicLookupUrl(id, Stage.Production);
+        }
+
+        public static string PublicLookupUrl(string id, Stage stage)
+        {
+            return PortalUrlForStage(stage) + "/api/public/games/" + Uri.EscapeDataString(Normalize(id));
         }
 
         /// <summary>Trims surrounding whitespace and lowercases. Null becomes an empty string.</summary>

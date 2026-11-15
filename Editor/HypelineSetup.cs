@@ -40,9 +40,10 @@ namespace MuxyHypeline
             Stage stage = Stage.Production;
             string stageName = (job.stage ?? "").Trim().ToLowerInvariant();
             if (stageName == "sandbox") stage = Stage.Sandbox;
+            else if (stageName == "staging") stage = Stage.Staging;
             else if (stageName.Length > 0 && stageName != "production")
             {
-                report.Error("invalid_stage", "\"" + job.stage + "\" is not a stage.", "Set \"stage\" to \"production\" or \"sandbox\", or leave it out.");
+                report.Error("invalid_stage", "\"" + job.stage + "\" is not a stage.", "Set \"stage\" to \"production\", \"sandbox\" or \"staging\", or leave it out.");
                 return;
             }
 
