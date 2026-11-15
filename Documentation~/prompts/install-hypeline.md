@@ -23,13 +23,23 @@ visible in-game viewer-action alert is a required part of the integration.
   use the guide's complete HypelineCodeDemo.cs in a separate test scene without
   the prefab manager/menu/alert. Keep its built-in viewer-action alert. Do not
   combine both paths or register duplicate fulfillment handlers.
+- Read https://muxy.github.io/hypeline-unity/agents.md before you start. It
+  describes what you can do yourself with one approval from me.
+- If the developer portal offers agent access, ask me to approve it once,
+  then register or look up my Game ID through it. A Game ID is permanent:
+  agree the ID and the game's name with me before you create one. Keep the
+  access token out of source, commits, logs, screenshots, and reports.
 - If the installed package has `Editor/HypelineAgent.cs`, use its setup and
   doctor tools for steps 2 and 3 instead of editing scene files by hand, and
   run the doctor again after any later scene change. They take a JSON job file
-  and write a JSON report; follow
-  https://muxy.github.io/hypeline-unity/agents.md. Include each report's
-  unresolved findings in your result. The tools do not replace the local
-  previews or the live checks in steps 4-6.
+  and write a JSON report. Include each report's unresolved findings in your
+  result.
+- If the portal offers sandbox testing, use it after step 4: sign the game in
+  to the sandbox, send each action as a test viewer, and confirm the handler
+  ran and each transaction was accepted or refunded as intended. Set the
+  manager back to the production stage afterwards. Report this as a sandbox
+  check. It does not replace the local previews in step 4 or the live Twitch
+  checks in steps 5 and 6.
 - Use available Unity, filesystem, and browser tools. Make persistent scene
   changes outside Play mode and save them. If a UI operation needs a file-based
   equivalent, explain it and verify Unity imports the result. If a step needs
@@ -45,10 +55,10 @@ visible in-game viewer-action alert is a required part of the integration.
    it. Inspect the actual installed package rather than assuming types exist.
 
 2. **Set up the scene.** Reuse or add MuxyHypelineManager. Set its Game ID to
-   my game's own ID from https://dev.muxy.io/games if I give you one (I create
-   the game there and copy its ID; IDs are permanent). Otherwise use the shared
-   test ID `gamelink-testing`, which is fine for the samples, and remind me to
-   create my own Game ID before release. Use the Inspector's Check button next
+   my game's own ID: the one I give you from https://dev.muxy.io/games, or one
+   you register for me through the portal after agreeing it with me (IDs are
+   permanent). Otherwise use the shared test ID `gamelink-testing`, which is
+   fine for the samples, and remind me to create my own Game ID before release. Use the Inspector's Check button next
    to Game ID to confirm the ID is registered and active, and report its result.
    If the broadcaster's extension configuration lists the Game ID under Linked
    Games, confirm it is allowed there. Set
