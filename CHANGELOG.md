@@ -1,4 +1,6 @@
 [Unreleased]
+- Add an explicit Staging connection option, staging Game ID lookups in the Inspector and doctor, and `stage: "staging"` in agent setup jobs. Production and Sandbox keep their existing serialized values and production-portal registry.
+- Publish a separate `/staging/` guide, agent reference, install prompt, and C# examples using staging URLs and the staging SDK connection.
 - Add Editor tools for coding agents and scripts: `setup` adds and wires the manager, menu, interaction alert and EventSystem in a scene, sets the Game ID, name and stage, and adds Game Texts and viewer actions bound to handler methods; `doctor` checks a scene and changes nothing. Both take a JSON job file and write a JSON report. Run them in batch mode with `-executeMethod MuxyHypeline.HypelineAgent.Run -hypelineJob <file> -hypelineReport <file>`, or, with the project open in the Editor, by writing the job to `Library/Hypeline/jobs/<name>.job.json`. See `Documentation~/agents.md`.
 - Add **Tools > Muxy Hypeline > Check Active Scene**, which runs the same check and logs its findings to the Console.
 - The docs site now serves `agents.md` and `llms.txt`.
@@ -24,6 +26,7 @@ Security and reliability
 
 - Make the in-game viewer-action alert a required setup, local preview, live-action checkpoint, and gameplay-adaptation requirement in steps 1–7 of the getting-started guide.
 - Include a six-second viewer/action notification in the C# integration sample using the existing fulfilled healthpack handler.
+
 - Present the Unity package as Muxy Hypeline. **Breaking:** the API namespace is now `MuxyHypeline` (was `MuxyGateway`) and the assembly is `Muxy.Hypeline` (was `Muxy.Gateway`). Update `using` directives and any assembly-definition references by name; references by GUID keep working.
 - Retain the package ID, prefab and script GUIDs, saved-token key, and backend connection identifiers for existing integrations.
 - Preserve reflection-loaded Mono TLS configuration types in stripped player builds through an Editor-only linker callback.

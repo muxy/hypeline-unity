@@ -198,7 +198,7 @@ Only `tool` is required. Everything else is optional:
 | `scene` | Scene asset path. Left out: the active scene in an open Editor, or the first enabled build scene in batch mode. |
 | `gameId` | The game's ID from <https://dev.muxy.io/games>. Left out: the manager keeps its current ID (a new manager uses the shared test ID `gamelink-testing`). |
 | `gameName` | The name viewers see in the extension. |
-| `stage` | `"production"` or `"sandbox"`. |
+| `stage` | `"production"`, `"sandbox"` or `"staging"`. Staging uses the staging portal and game backend. |
 | `texts` | Game Texts, matched by `label`. A new label is added; an existing one is updated. |
 | `actions` | Viewer actions, matched by `id`. A new ID is added; an existing one is updated. |
 | `skipMenu`, `skipAlert`, `skipEventSystem` | `true` to not add that object. The alert is a required part of the integration; skip it only if the game shows viewer actions another way. |

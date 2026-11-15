@@ -34,12 +34,16 @@ jobs:
           node-version: '22'
       - name: Verify embedded C# examples
         run: node 'Documentation~/tools/sync-examples.mjs' --check
+      - name: Check and build environment documentation
+        run: |
+          node --test 'Documentation~/tools/build-site.test.mjs'
+          node 'Documentation~/tools/build-site.mjs' 'site~'
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload static documentation
         uses: actions/upload-pages-artifact@v4
         with:
-          path: 'Documentation~'
+          path: 'site~'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

@@ -1,6 +1,8 @@
 // Run after editing a downloadable example; the site itself requires no build.
 import { readFile, writeFile } from "node:fs/promises";
-const root = new URL("../", import.meta.url);
+import { resolve } from "node:path";
+import { pathToFileURL, fileURLToPath } from "node:url";
+export async function syncExamples(root, check = false) {
 const pageURL = new URL("index.html", root);
 let html = await readFile(pageURL, "utf8");
 for (const { name, path, language, id } of [
@@ -17,10 +19,17 @@ for (const { name, path, language, id } of [
   if (from < 0 || to < from) throw new Error(`Missing example markers for ${name}`);
   html = html.slice(0, from + start.length) + `<pre><code${id ? ` id="${id}"` : ""} class="language-${language}">${escaped}</code></pre>` + html.slice(to);
 }
-if (process.argv.includes("--check")) {
+if (check) {
   if (html !== await readFile(pageURL, "utf8")) throw new Error("Embedded examples are stale; run sync-examples.mjs");
   console.log("Embedded examples and install prompt match downloadable files.");
 } else {
   await writeFile(pageURL, html, "utf8");
   console.log("Updated embedded examples and install prompt.");
+}
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const rootIndex = process.argv.indexOf("--root");
+  const root = rootIndex < 0 ? new URL("../", import.meta.url) : pathToFileURL(resolve(process.argv[rootIndex + 1]) + "/");
+  await syncExamples(root, process.argv.includes("--check"));
 }

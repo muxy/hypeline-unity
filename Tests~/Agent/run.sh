@@ -69,6 +69,47 @@ public static class Fixture
 {
     public static void CreateScenes()
     {
+        const string legacyKey = "MuxyGatewayRefreshToken";
+        const string stagingKey = "MuxyGatewayRefreshToken.staging";
+        bool hadLegacy = PlayerPrefs.HasKey(legacyKey), hadStaging = PlayerPrefs.HasKey(stagingKey);
+        string legacy = PlayerPrefs.GetString(legacyKey), staged = PlayerPrefs.GetString(stagingKey);
+        var holder = new GameObject("SessionIsolationCheck");
+        holder.SetActive(false);
+        try
+        {
+            var manager = holder.AddComponent<MuxyHypelineManager>();
+            manager.Stage = MuxyHypeline.Stage.Staging;
+            PlayerPrefs.SetString(legacyKey, "production-sentinel");
+            PlayerPrefs.SetString(stagingKey, "staging-sentinel");
+            manager.ClearSavedSession();
+            if (PlayerPrefs.GetString(legacyKey) != "production-sentinel" || PlayerPrefs.HasKey(stagingKey))
+                throw new System.Exception("Staging session cleanup touched production or retained staging credentials");
+        }
+        finally
+        {
+            if (hadLegacy) PlayerPrefs.SetString(legacyKey, legacy); else PlayerPrefs.DeleteKey(legacyKey);
+            if (hadStaging) PlayerPrefs.SetString(stagingKey, staged); else PlayerPrefs.DeleteKey(stagingKey);
+            Object.DestroyImmediate(holder);
+        }
+        if ((int)MuxyHypeline.Stage.Production != 0 || (int)MuxyHypeline.Stage.Sandbox != 1 || (int)MuxyHypeline.Stage.Staging != 2)
+            throw new System.Exception("Existing serialized stage values changed");
+        foreach (var stage in new[] { MuxyHypeline.Stage.Production, MuxyHypeline.Stage.Sandbox, MuxyHypeline.Stage.Staging })
+        {
+            string portal = stage == MuxyHypeline.Stage.Staging ? "https://dev.staging.muxy.io" : "https://dev.muxy.io";
+            if (MuxyHypeline.HypelineGameId.PortalUrlForStage(stage) != portal
+                || MuxyHypeline.HypelineGameId.GamesPageUrlForStage(stage) != portal + "/games"
+                || MuxyHypeline.HypelineGameId.PublicLookupUrl(" Test-Game ", stage) != portal + "/api/public/games/test-game")
+                throw new System.Exception("Game ID lookup uses the wrong environment");
+        }
+        using (var sdk = new MuxyHypeline.SDK("gamelink-testing"))
+        {
+            string production = sdk.GetProductionURL();
+            var original = new System.Uri(production.Contains("://") ? production : "wss://" + production);
+            var staging = new System.Uri(sdk.GetStagingURL());
+            if (staging.Scheme != "wss" || staging.Host != "gamelink.staging.muxy.io"
+                || staging.PathAndQuery != original.PathAndQuery)
+                throw new System.Exception("Staging transport lost the native projection path");
+        }
         System.IO.Directory.CreateDirectory("Assets/Scenes");
 
         var empty = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -358,3 +399,18 @@ else:
 EOF
 
 echo "Agent tool checks finished."
+
+# Staging setup, doctor, and a repeated setup preserve the selected environment.
+job staging '{"tool":"setup","scene":"Assets/Scenes/Main.unity","stage":"staging","offline":true}'
+check staging 0 '
+expect(r["stage"] == "staging", "staging was not selected")
+expect("Manager Stage = Staging" in r["changed"], "staging change was not saved")'
+AFTER=$(checksum)
+job stagingagain '{"tool":"setup","scene":"Assets/Scenes/Main.unity","stage":"staging","offline":true}'
+check stagingagain 0 '
+expect(r["stage"] == "staging" and r["changed"] == [] and not r["sceneSaved"], "staging setup is not idempotent")'
+[ "$AFTER" = "$(checksum)" ] || { echo "FAIL stagingagain: scene changed" >&2; exit 1; }
+job doctorstaging '{"tool":"doctor","scene":"Assets/Scenes/Main.unity","offline":true}'
+check doctorstaging 0 '
+expect(r["stage"] == "staging" and "staging_stage" in codes, "doctor did not report staging")'
+echo "PASS staging environment"

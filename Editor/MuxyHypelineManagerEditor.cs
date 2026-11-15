@@ -22,6 +22,8 @@ public sealed class MuxyHypelineManagerEditor : Editor
     private UnityWebRequest gameIdRequest;
     private UnityWebRequestAsyncOperation gameIdOperation;
     private string gameIdRequestId;
+    private Stage gameIdRequestStage;
+    private Stage gameIdResultStage;
     private double gameIdRequestStartedAt;
     private string gameIdResultId;
     private string gameIdResultMessage;
@@ -99,6 +101,8 @@ public sealed class MuxyHypelineManagerEditor : Editor
 
     private void DrawGameIdTools(SerializedProperty gameId)
     {
+        Stage stage = (Stage)serializedObject.FindProperty("Stage").intValue;
+        if (gameIdRequest != null && gameIdRequestStage != stage) CancelGameIdCheck();
         string raw = gameId.stringValue;
         string normalized = HypelineGameId.Normalize(raw);
         bool valid = HypelineGameId.IsValidFormat(normalized);
@@ -115,26 +119,27 @@ public sealed class MuxyHypelineManagerEditor : Editor
         bool checking = gameIdRequest != null;
         using (new EditorGUILayout.HorizontalScope())
         {
-            if (GUILayout.Button(new GUIContent("Get a Game ID", "Open " + HypelineGameId.GamesPageUrl + " to create or manage your game's ID.")))
-                Application.OpenURL(HypelineGameId.GamesPageUrl);
+            if (GUILayout.Button(new GUIContent("Get a Game ID", "Open " + HypelineGameId.GamesPageUrlForStage(stage) + " to create or manage your game's ID.")))
+                Application.OpenURL(HypelineGameId.GamesPageUrlForStage(stage));
             using (new EditorGUI.DisabledScope(checking || !valid))
             {
-                if (GUILayout.Button(new GUIContent(checking ? "Checking..." : "Check", "Look up this Game ID on " + HypelineGameId.PortalUrl + ".")))
-                    StartGameIdCheck(normalized);
+                if (GUILayout.Button(new GUIContent(checking ? "Checking..." : "Check", "Look up this Game ID on " + HypelineGameId.PortalUrlForStage(stage) + ".")))
+                    StartGameIdCheck(normalized, stage);
             }
         }
 
-        if (!checking && gameIdResultMessage != null && gameIdResultId == normalized)
+        if (!checking && gameIdResultMessage != null && gameIdResultId == normalized && gameIdResultStage == stage)
             EditorGUILayout.HelpBox(gameIdResultMessage, gameIdResultType);
     }
 
-    private void StartGameIdCheck(string id)
+    private void StartGameIdCheck(string id, Stage stage)
     {
         CancelGameIdCheck();
         gameIdResultMessage = null;
         gameIdRequestId = id;
+        gameIdRequestStage = stage;
         gameIdRequestStartedAt = EditorApplication.timeSinceStartup;
-        gameIdRequest = UnityWebRequest.Get(HypelineGameId.PublicLookupUrl(id));
+        gameIdRequest = UnityWebRequest.Get(HypelineGameId.PublicLookupUrl(id, stage));
         gameIdRequest.timeout = (int)GameIdCheckTimeoutSeconds;
         gameIdRequest.SetRequestHeader("Accept", "application/json");
         gameIdOperation = gameIdRequest.SendWebRequest();
@@ -152,7 +157,7 @@ public sealed class MuxyHypelineManagerEditor : Editor
         if (!gameIdOperation.isDone)
         {
             if (EditorApplication.timeSinceStartup - gameIdRequestStartedAt < GameIdCheckTimeoutSeconds + 1.0) return;
-            SetGameIdResult(gameIdRequestId, "Could not check the Game ID: " + HypelineGameId.PortalUrl + " did not respond within " + GameIdCheckTimeoutSeconds.ToString("0") + " seconds.", MessageType.Warning);
+            SetGameIdResult(gameIdRequestId, "Could not check the Game ID: " + HypelineGameId.PortalUrlForStage(gameIdRequestStage) + " did not respond within " + GameIdCheckTimeoutSeconds.ToString("0") + " seconds.", MessageType.Warning);
             CancelGameIdCheck();
             Repaint();
             return;
@@ -169,6 +174,7 @@ public sealed class MuxyHypelineManagerEditor : Editor
 
     private void InterpretGameIdResponse(string id, long code, string error, string body)
     {
+        Stage stage = gameIdRequestStage;
         if (code == 404)
         {
             SetGameIdResult(id, "\"" + id + "\" is not registered, so sign-in will be rejected. Create it on the games page (Get a Game ID), or use " + HypelineGameId.SharedTestId + " for testing.", MessageType.Warning);
@@ -205,9 +211,9 @@ public sealed class MuxyHypelineManagerEditor : Editor
                 SetGameIdResult(id, "Registered: " + name + " (unverified). Sign-in with this Game ID is accepted; Muxy has not verified this game yet.", MessageType.Info);
         }
         else if (game.status == "suspended")
-            SetGameIdResult(id, name + " is suspended by Muxy, so sign-in is rejected. See " + HypelineGameId.GamesPageUrl + " or contact Muxy.", MessageType.Error);
+            SetGameIdResult(id, name + " is suspended by Muxy, so sign-in is rejected. See " + HypelineGameId.GamesPageUrlForStage(stage) + " or contact Muxy.", MessageType.Error);
         else if (game.status == "archived")
-            SetGameIdResult(id, name + " is archived, so sign-in is rejected. Its owner can restore it at " + HypelineGameId.GamesPageUrl + ".", MessageType.Error);
+            SetGameIdResult(id, name + " is archived, so sign-in is rejected. Its owner can restore it at " + HypelineGameId.GamesPageUrlForStage(stage) + ".", MessageType.Error);
         else
             SetGameIdResult(id, name + " has status \"" + game.status + "\"; sign-in may be rejected.", MessageType.Warning);
     }
@@ -215,6 +221,7 @@ public sealed class MuxyHypelineManagerEditor : Editor
     private void SetGameIdResult(string id, string message, MessageType type)
     {
         gameIdResultId = id;
+        gameIdResultStage = gameIdRequestStage;
         gameIdResultMessage = message;
         gameIdResultType = type;
     }

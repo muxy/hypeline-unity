@@ -30,6 +30,7 @@ namespace MuxyHypeline
         public Action<string> OnMessage;
 
         public String GetSandboxURL() { throw new NotSupportedException(); }
+        public String GetStagingURL() { throw new NotSupportedException(); }
 
         public String GetProductionURL() { throw new NotSupportedException(); }
 

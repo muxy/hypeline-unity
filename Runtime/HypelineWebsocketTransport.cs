@@ -17,7 +17,8 @@ namespace MuxyHypeline
     public enum Stage
     {
         Production = 0,
-        Sandbox = 1
+        Sandbox = 1,
+        Staging = 2
     };
 
     public enum HypelineTransportState { Disconnected, Connecting, Connected, Reconnecting, Error }
@@ -241,6 +242,12 @@ namespace MuxyHypeline
         {
             if (instance == null) throw new ArgumentNullException(nameof(instance));
             return Start(StageUri(instance.GetSandboxURL()), instance);
+        }
+
+        public Task OpenAndRunInStaging(SDK instance)
+        {
+            if (instance == null) throw new ArgumentNullException(nameof(instance));
+            return Start(StageUri(instance.GetStagingURL()), instance);
         }
 
         public Task OpenAndRunInProduction(SDK instance)
