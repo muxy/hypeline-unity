@@ -33,8 +33,12 @@ test("staging guide, agent reference, prompt and examples stay in staging", asyn
     assert.match(guide, /id="authenticate"[^]*Connect to staging/);
     assert.match(guide, /id="first-action"[^]*Send a staging test-viewer action/);
     assert.match(guide, /#4-test-in-staging/);
+    // Wording that only fits the live Twitch flow.
+    assert.doesNotMatch(guide, /Connect your Twitch channel|Test the complete round trip|extension is active|through the extension|viewer extension|extension reflects|extension update|Linked Games|Twitch channel if|Hypeline staging/);
+    assert.match(guide, /<span>05<\/span> Connect to staging/);
+    assert.match(guide, /Send healthpack through the staging test-viewer endpoint/);
     const prompt = await readFile(join(output, "staging/prompts/install-hypeline.md"), "utf8");
-    assert.doesNotMatch(prompt, /\*\*Connect Twitch|manager back to the production stage/);
+    assert.doesNotMatch(prompt, /\*\*Connect Twitch|manager back to the production stage|Linked\s+Games/);
     await syncExamples(pathToFileURL(join(output, "staging") + "/"), true);
     await assert.rejects(buildSite(output), /must be empty/);
   } finally {

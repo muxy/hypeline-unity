@@ -38,6 +38,13 @@ function stagingText(text) {
   return text;
 }
 
+// Replaces text that must be present, so a later edit to the source page fails
+// the build instead of leaving production wording in the staging copy.
+function swap(text, from, to) {
+  if (!text.includes(from)) throw new Error("Staging build: source text not found: " + from);
+  return text.replaceAll(from, to);
+}
+
 async function transformTree(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
@@ -66,6 +73,7 @@ export async function buildSite(destination) {
     .replace("Set its Game ID to", "Set its Stage to Staging, then set its Game ID to")
     .replace("Distinguish local previews, real Twitch delivery, visible in-game alert,\ntransaction acknowledgment, extension state, broadcast video, actual gameplay,", "Distinguish local previews, staging delivery, visible in-game alert,\ntransaction acknowledgment, published game state, actual gameplay,")
     .replace("until the required live alert", "until the required staging viewer-action alert");
+  prompt = swap(prompt, "   If the broadcaster's extension configuration lists the Game ID under Linked\n   Games, confirm it is allowed there. Set\n   the game name", "   Set the game name");
   await writeFile(promptPath, prompt);
 
   const agentsPath = join(staging, "agents.md");
@@ -89,6 +97,24 @@ export async function buildSite(destination) {
     .replace(/<section id="first-action">[\s\S]*?<\/section>/, '<section id="first-action"><div class="section-label">STEP 06</div><h2>Send a staging test-viewer action</h2><p>Use the staging portal\'s action endpoint from <a href="agents.md#4-test-in-the-staging">the agent reference</a>. Confirm the healthpack changes health exactly once, the required in-game alert appears, and the transaction lookup reports <code>accepted</code>. Exercise the refund path and verify <code>refunded</code> too.</p><p>Keep the manager on Staging. Live Twitch and production verification are separate release checks.</p></section>')
     .replace("Set <strong>Game ID</strong>", "Set <strong>Stage</strong> to <strong>Staging</strong>, then set <strong>Game ID</strong>");
   html = html.replaceAll("#4-test-in-the-staging", "#4-test-in-staging");
+  // The rest of the page still describes the live Twitch flow: the extension,
+  // a broadcaster and a voting viewer. None of those exist in this flow.
+  for (const [from, to] of [
+    ["<span>05</span> Connect your Twitch channel", "<span>05</span> Connect to staging"],
+    ["<span>06</span> Test the complete round trip", "<span>06</span> Send a test-viewer action"],
+    [" If the broadcaster&#x27;s extension configuration lists your Game ID under <strong>Linked Games</strong>, make sure it is allowed there.", ""],
+    ["Supply your project path or Twitch channel if", "Supply your project path if"],
+    ["test the game in the Hypeline staging by", "test the game on staging by"],
+    ["The agent must verify the real viewer action, in-game alert, transaction acknowledgment, and extension update.", "The agent must verify the staging test-viewer action, in-game alert, and transaction acknowledgment."],
+    ["You may need to complete a Twitch or Unity interaction", "You may need to complete a Unity interaction"],
+    ["Request a fresh code and check that the extension is active.", "Request a fresh PIN from the staging portal (a PIN works once, for five minutes) and confirm the manager&#x27;s Stage is Staging."],
+    [", as is a game the broadcaster disallowed under <strong>Linked Games</strong>", ""],
+    ["Confirm the extension is active on the correct channel, the viewer can see its placement, and the action is registered, available, and has a usable count.", "Confirm the game signed in with a PIN for this Game ID, the portal&#x27;s game-state endpoint lists the action, and the action is available and has a usable count."],
+    ["<li>In the viewer extension, select a poll option and submit a vote.</li>", "<li>The staging test viewer cannot vote, so staging covers only the no-vote result. Voting is part of the separate live Twitch check.</li>"],
+    ["Trigger healthpack through the extension. Health changes from 50 to 60 once, the in-game alert shows the viewer and action then clears, fulfillment is reported, and the extension updates to 60.", "Send healthpack through the staging test-viewer endpoint. Health changes from 50 to 60 once, the in-game alert shows the viewer and action then clears, and the transaction lookup reports accepted."],
+    ["Confirm the extension reflects the state, then restore it.", "Confirm the portal&#x27;s game-state endpoint reflects the state, then restore it."],
+    ["Submit a vote, receive interim/final updates, and apply a decision only on a valid final result. Repeat with no votes.", "Start a poll and confirm the no-vote final result is handled. Voting needs the separate live Twitch check."],
+  ]) html = swap(html, from, to);
   await writeFile(indexPath, html);
   const llmsPath = join(staging, "llms.txt");
   await writeFile(llmsPath, "# STAGING documentation\nUse the staging portal, Unity 6, SDK #main, and manager Stage = Staging.\n\n" + await readFile(llmsPath, "utf8"));
