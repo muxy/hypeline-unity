@@ -4,6 +4,7 @@ using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.SceneManagement;
 
 namespace MuxyHypeline
@@ -476,9 +477,8 @@ namespace MuxyHypeline
                     SerializedProperty call = calls.GetArrayElementAtIndex(c);
                     UnityEngine.Object target = call.FindPropertyRelative("m_Target").objectReferenceValue;
                     string method = call.FindPropertyRelative("m_MethodName").stringValue;
-                    int mode = call.FindPropertyRelative("m_Mode").intValue;
 
-                    if (target == null || string.IsNullOrEmpty(method) || !HandlerMethodExists(target.GetType(), method, mode))
+                    if (target == null || string.IsNullOrEmpty(method) || !HandlerMethodExists(target, method, call))
                         broken.Add(c);
                 }
                 break;
@@ -488,50 +488,30 @@ namespace MuxyHypeline
         }
 
         /// <summary>
-        /// Whether type has an instance method a UnityEvent binding of the given mode can
-        /// call. The modes are UnityEngine.Events.PersistentListenerMode: 0 passes the
-        /// event's own argument, 1 nothing, and 2 to 6 a value stored with the binding.
+        /// Resolves the stored binding with Unity's method matcher. A dynamic listener can
+        /// take a compatible base type, such as object, instead of exactly GameActionUsed.
         /// </summary>
-        private static bool HandlerMethodExists(Type type, string method, int mode)
+        private static bool HandlerMethodExists(UnityEngine.Object target, string method, SerializedProperty call)
         {
             Type[] arguments;
-            switch (mode)
+            switch ((PersistentListenerMode)call.FindPropertyRelative("m_Mode").intValue)
             {
-                case 0: arguments = new Type[] { typeof(GameActionUsed) }; break;
-                case 1: arguments = new Type[0]; break;
-                case 3: arguments = new Type[] { typeof(int) }; break;
-                case 4: arguments = new Type[] { typeof(float) }; break;
-                case 5: arguments = new Type[] { typeof(string) }; break;
-                case 6: arguments = new Type[] { typeof(bool) }; break;
-                default: arguments = null; break; // An object reference of some Unity type.
+                case PersistentListenerMode.EventDefined: arguments = new Type[] { typeof(GameActionUsed) }; break;
+                case PersistentListenerMode.Void: arguments = new Type[0]; break;
+                case PersistentListenerMode.Int: arguments = new Type[] { typeof(int) }; break;
+                case PersistentListenerMode.Float: arguments = new Type[] { typeof(float) }; break;
+                case PersistentListenerMode.String: arguments = new Type[] { typeof(string) }; break;
+                case PersistentListenerMode.Bool: arguments = new Type[] { typeof(bool) }; break;
+                case PersistentListenerMode.Object:
+                    string argumentName = call.FindPropertyRelative("m_Arguments.m_ObjectArgumentAssemblyTypeName").stringValue;
+                    Type argumentType = string.IsNullOrEmpty(argumentName) ? null : Type.GetType(argumentName, false);
+                    arguments = new Type[] { argumentType ?? typeof(UnityEngine.Object) };
+                    break;
+                default: return false;
             }
 
-            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
-                | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly;
-
-            // Private methods of base types are not inherited, so each type is searched.
-            for (Type current = type; current != null && current != typeof(object); current = current.BaseType)
-            {
-                foreach (System.Reflection.MethodInfo candidate in current.GetMethods(flags))
-                {
-                    if (candidate.Name != method || candidate.IsGenericMethod) continue;
-
-                    System.Reflection.ParameterInfo[] parameters = candidate.GetParameters();
-                    if (arguments == null)
-                    {
-                        if (parameters.Length == 1 && typeof(UnityEngine.Object).IsAssignableFrom(parameters[0].ParameterType)) return true;
-                        continue;
-                    }
-
-                    if (parameters.Length != arguments.Length) continue;
-                    bool same = true;
-                    for (int p = 0; p < parameters.Length; p++)
-                        if (parameters[p].ParameterType != arguments[p]) same = false;
-                    if (same) return true;
-                }
-            }
-
-            return false;
+            System.Reflection.MethodInfo resolved = UnityEventBase.GetValidMethodInfo(target, method, arguments);
+            return resolved != null && !resolved.IsGenericMethod && resolved.ReturnType == typeof(void);
         }
 
         internal static string PathOf(GameObject gameObject)

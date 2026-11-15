@@ -44,9 +44,15 @@ using UnityEngine;
 public class PlayerHealth : MonoBehaviour
 {
     public int Health = 50;
+    public int ObjectHandlerCalls;
 
     public void OnHealthpack(MuxyHypeline.GameActionUsed used) { Health += 10; }
     public void OnShield(MuxyHypeline.GameActionUsed used) { }
+    public void Handler(object used)
+    {
+        if (!(used is MuxyHypeline.GameActionUsed)) throw new System.Exception("Wrong event argument");
+        ObjectHandlerCalls++;
+    }
     public void NotAHandler(int amount) { }
 }
 EOF
@@ -55,6 +61,7 @@ cat > "$PROJECT/Assets/Editor/Fixture.cs" <<'EOF'
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Events;
 
 // A saved scene with World/Player, where Player has a handler component, and an
 // empty second scene.
@@ -76,6 +83,25 @@ public static class Fixture
 
         EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene("Assets/Scenes/Main.unity", true) };
         AssetDatabase.SaveAssets();
+    }
+
+    public static void CheckObjectHandler()
+    {
+        EditorSceneManager.OpenScene("Assets/Scenes/Main.unity", OpenSceneMode.Single);
+        var manager = Object.FindObjectOfType<MuxyHypelineManager>();
+        var handler = GameObject.Find("World/Player").GetComponent<PlayerHealth>();
+        var action = manager.FindGameAction("object-handler");
+        var used = action.OnGameActionUsed;
+        if (used.GetPersistentEventCount() != 1 || used.GetPersistentTarget(0) != handler
+            || used.GetPersistentMethodName(0) != "Handler")
+            throw new System.Exception("Expected exactly one persistent Handler(object) binding");
+
+        // Exercise the serialized UnityEvent, including Unity's method resolution.
+        used.SetPersistentListenerState(0, UnityEventCallState.EditorAndRuntime);
+        used.Invoke(new MuxyHypeline.GameActionUsed());
+        if (handler.ObjectHandlerCalls != 1)
+            throw new System.Exception("Handler(object) did not receive the event exactly once");
+        Debug.Log("PASS Handler(object) invocation");
     }
 }
 EOF
@@ -288,6 +314,30 @@ expect(sorted(bound) == ["OnHealthpack", "OnHealthpack", "OnShield", "OnShield"]
 
 job doctorrepaired '{"tool":"doctor","scene":"Assets/Scenes/Main.unity","offline":true}'
 check doctorrepaired 0 'expect(r["ok"] and errors == [], "errors = %s" % errors)'
+
+# Unity accepts a base parameter such as object for the dynamic GameActionUsed
+# argument. Doctor must accept it, and setup must preserve its valid binding.
+job objecthandler '{"tool":"setup","scene":"Assets/Scenes/Main.unity","actions":[
+  {"id":"object-handler","name":"Object handler","handler":{"gameObject":"World/Player","component":"PlayerHealth","method":"Handler"}}]}'
+check objecthandler 0 'expect(r["ok"] and r["sceneSaved"], "Handler(object) was not set up")'
+
+unity invokeobjecthandler -quit -executeMethod Fixture.CheckObjectHandler
+[ "$STATUS" = 0 ] && grep -q 'PASS Handler(object) invocation' "$WORK/invokeobjecthandler.log" \
+    || { echo "FAIL invokeobjecthandler: Handler(object) did not run; see $WORK/invokeobjecthandler.log" >&2; exit 1; }
+echo "PASS invokeobjecthandler"
+
+AFTER=$(checksum)
+job doctorobjecthandler '{"tool":"doctor","scene":"Assets/Scenes/Main.unity","offline":true}'
+check doctorobjecthandler 0 'expect(r["ok"] and errors == [], "a working Handler(object) was reported broken")'
+[ "$AFTER" = "$(checksum)" ] || { echo "FAIL doctorobjecthandler: the scene changed" >&2; exit 1; }
+
+for name in objecthandleragain objecthandlerthird; do
+    job "$name" "$(cat "$WORK/objecthandler.job.json")"
+    check "$name" 0 '
+expect(r["ok"], "Handler(object) setup failed")
+expect(r["created"] == [] and r["changed"] == [] and not r["sceneSaved"], "a valid Handler(object) binding was replaced")'
+    [ "$AFTER" = "$(checksum)" ] || { echo "FAIL $name: the scene changed" >&2; exit 1; }
+done
 
 # With the lookup on, an ID that is not registered is an error. The lookup needs
 # the network and the portal's public lookup, so no answer is noted rather than
