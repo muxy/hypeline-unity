@@ -2,7 +2,8 @@
     "name": "Muxy.Hypeline.Editor",
     "rootNamespace": "",
     "references": [
-        "Muxy.Hypeline"
+        "Muxy.Hypeline",
+        "UnityEngine.UI"
     ],
     "includePlatforms": [
         "Editor"

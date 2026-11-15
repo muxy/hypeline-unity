@@ -125,6 +125,7 @@
 <p>Give your coding agent this Markdown prompt along with your Unity project. It follows steps 1–7, checks existing setup before making changes, and treats the visible in-game viewer-action alert as a required checkpoint.</p>
 <p>Open your project in the agent’s workspace, copy the prompt below, and paste it into your agent chat. You can also download the <code>.md</code> file and attach it. Supply your project path or Twitch channel if the agent cannot determine them from your current session.</p>
 <div class="prompt-actions"><button class="button primary" type="button" data-copy-target="agent-install-prompt">Copy install prompt</button><a class="button secondary" href="prompts/install-hypeline.md" download>Download .md <span aria-hidden="true">↓</span></a></div>
+<p>The package also includes Editor tools an agent can run without the Unity Editor UI: <strong>setup</strong> adds and wires the prefabs, Game Texts and viewer actions in a scene, and <strong>doctor</strong> checks the result. Both take a JSON job file and write a JSON report. The install prompt tells the agent to use them; the reference is <a href="agents.md">Editor tools for coding agents</a>.</p>
 <div class="callout"><strong>The same required checkpoints</strong><p>The agent must verify the real viewer action, in-game alert, transaction acknowledgment, and extension update. Local previews and unverified steps must be reported clearly. You may need to complete a Twitch or Unity interaction when the agent cannot access it.</p></div>
 <details class="code-details"><summary>Read the complete install prompt <span>Markdown</span></summary><!-- example:install-hypeline.md --><pre><code id="agent-install-prompt" class="language-markdown"># Install Muxy Hypeline in my Unity project
 
@@ -151,6 +152,13 @@ visible in-game viewer-action alert is a required part of the integration.
   use the guide's complete HypelineCodeDemo.cs in a separate test scene without
   the prefab manager/menu/alert. Keep its built-in viewer-action alert. Do not
   combine both paths or register duplicate fulfillment handlers.
+- If the installed package has `Editor/HypelineAgent.cs`, use its setup and
+  doctor tools for steps 2 and 3 instead of editing scene files by hand, and
+  run the doctor again after any later scene change. They take a JSON job file
+  and write a JSON report; follow
+  https://muxy.github.io/hypeline-unity/agents.md. Include each report's
+  unresolved findings in your result. The tools do not replace the local
+  previews or the live checks in steps 4-6.
 - Use available Unity, filesystem, and browser tools. Make persistent scene
   changes outside Play mode and save them. If a UI operation needs a file-based
   equivalent, explain it and verify Unity imports the result. If a step needs

@@ -1,0 +1,16 @@
+# Muxy Hypeline for Unity
+
+> Hypeline connects a Unity game to its live audience on Twitch: viewers trigger game actions and vote in polls through a Twitch extension, and the game shows each action as it happens.
+
+The Unity package is installed from a Git URL in Unity Package Manager. A broadcaster signs in from inside the game with a short code, and the game receives viewer actions over a WebSocket connection.
+
+## Docs
+
+- [Getting-started guide](https://muxy.github.io/hypeline-unity/): installation, scene setup, the first viewer action, Twitch sign-in, polls, the C# API and troubleshooting. One static HTML page.
+- [Editor tools for coding agents](https://muxy.github.io/hypeline-unity/agents.md): set up and check a scene from a JSON job file, without the Unity Editor UI.
+- [Install prompt](https://muxy.github.io/hypeline-unity/prompts/install-hypeline.md): the instructions a developer gives a coding agent to carry out the guide and report what was verified.
+
+## Examples
+
+- [HypelineActionDemo.cs](https://muxy.github.io/hypeline-unity/examples/HypelineActionDemo.cs): a viewer-action handler used with the prefabs.
+- [HypelineCodeDemo.cs](https://muxy.github.io/hypeline-unity/examples/HypelineCodeDemo.cs): a complete integration in C# without the prefabs.

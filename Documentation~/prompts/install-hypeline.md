@@ -23,6 +23,13 @@ visible in-game viewer-action alert is a required part of the integration.
   use the guide's complete HypelineCodeDemo.cs in a separate test scene without
   the prefab manager/menu/alert. Keep its built-in viewer-action alert. Do not
   combine both paths or register duplicate fulfillment handlers.
+- If the installed package has `Editor/HypelineAgent.cs`, use its setup and
+  doctor tools for steps 2 and 3 instead of editing scene files by hand, and
+  run the doctor again after any later scene change. They take a JSON job file
+  and write a JSON report; follow
+  https://muxy.github.io/hypeline-unity/agents.md. Include each report's
+  unresolved findings in your result. The tools do not replace the local
+  previews or the live checks in steps 4-6.
 - Use available Unity, filesystem, and browser tools. Make persistent scene
   changes outside Play mode and save them. If a UI operation needs a file-based
   equivalent, explain it and verify Unity imports the result. If a step needs
