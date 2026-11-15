@@ -1,4 +1,4 @@
-[Unreleased]
+[0.2.0] 2026/11/15
 Security and reliability
 - Connect to production and sandbox over `wss://` with normal certificate validation. Previously both stages used unencrypted `ws://`, which sent PINs, session tokens and refresh tokens in cleartext. Custom endpoints may use `ws://` only for loopback test servers.
 - Replace the transport with the Gateway Unity 1.1.0-rc.1 implementation: tracked send/receive tasks, bounded reconnect backoff, 16 MiB message limit, and native calls only from `SDK.Update()` on the main thread. Messages that arrive just before a connection closes are still delivered by `SDK.Update()`, in arrival order, before `HandleReconnect` for the next connection. A binary message or one over 16 MiB is a protocol violation: the transport faults (`HypelineTransportState.Error`, no reconnect) and drops the messages it has not delivered yet. `Tests~/Transport` has a Mono regression harness for the transport.
