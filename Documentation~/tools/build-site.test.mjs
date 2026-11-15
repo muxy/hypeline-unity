@@ -27,6 +27,9 @@ test("staging guide, agent reference, prompt and examples stay in staging", asyn
     for (const match of agent.matchAll(/\]\(#([^)]*)\)/g)) assert.ok(anchors.has(match[1]), "broken agent-doc anchor: " + match[1]);
     assert.doesNotMatch(agent, /Set the stage back|stage back to production/);
     const guide = await readFile(join(output, "staging/index.html"), "utf8");
+    assert.match(guide, /hero-meta"><span>Unity 6<\/span>/);
+    assert.doesNotMatch(guide, /Unity 2020\.3|href="https:\/\/github.com\/jrslyce\/foxfire-hypeline-demo"/);
+    assert.match(guide, /Connect your Unity game to the staging backend/);
     assert.match(guide, /id="authenticate"[^]*Connect to staging/);
     assert.match(guide, /id="first-action"[^]*Send a staging test-viewer action/);
     assert.match(guide, /#4-test-in-staging/);
