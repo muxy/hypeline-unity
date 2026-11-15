@@ -122,6 +122,8 @@ Setup behaves like this:
 - The prefabs are added at the scene root with their default layout. Position the menu
   button and the alert for the game afterwards; the guide's step 2 says what to check.
 - Running the same job again changes nothing and does not save the scene.
+- Binding an action whose existing handler can no longer run, for example because its
+  method was renamed, replaces that handler instead of adding a second one.
 - A new EventSystem gets the input module that matches the project's Active Input
   Handling.
 
@@ -134,7 +136,8 @@ Setup behaves like this:
 The doctor reports, among other things: no manager or more than one active; an invalid,
 unregistered, suspended or archived Game ID; a menu or alert that does not reference the
 manager; a missing or mismatched EventSystem input module; and actions with duplicate
-IDs or broken handlers. It looks the Game ID up on the developer portal unless the job
+IDs or with a handler that cannot run (its object is gone, or it no longer has a method
+with the bound name and parameter). It looks the Game ID up on the developer portal unless the job
 sets `"offline": true`.
 
 ## Report

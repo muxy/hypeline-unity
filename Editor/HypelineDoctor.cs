@@ -224,18 +224,17 @@ namespace MuxyHypeline
                 if (string.IsNullOrWhiteSpace(action.FindPropertyRelative("Name").stringValue))
                     report.Warning("action_without_name", "Viewer action \"" + id + "\" has no name for viewers to see.", "Set its Name.");
 
-                GameAction live = manager.FindGameAction(id);
-                int listeners = live == null || live.OnGameActionUsed == null ? 0 : live.OnGameActionUsed.GetPersistentEventCount();
-                for (int l = 0; l < listeners; l++)
-                {
-                    if (live.OnGameActionUsed.GetPersistentTarget(l) == null || string.IsNullOrEmpty(live.OnGameActionUsed.GetPersistentMethodName(l)))
-                        report.Error("action_handler_broken", "Viewer action \"" + id + "\" has a handler whose object or method is missing.", "Bind it again with the setup tool, or in the Inspector.");
-                }
+                int listeners;
+                int broken = HypelineAgent.BrokenHandlers(manager, id, out listeners).Count;
+                if (broken > 0)
+                    report.Error("action_handler_broken", "Viewer action \"" + id + "\" has " + (broken == 1 ? "a handler" : broken + " handlers")
+                        + " that cannot run: the object is gone, or it no longer has a method with that name and parameter.",
+                        "Bind the action again with the setup tool, which replaces a handler that cannot run, or fix it in the Inspector.");
                 if (listeners == 0 && !anyListener)
                     report.Info("action_without_handler", "Viewer action \"" + id + "\" has no handler set in the Inspector.",
                         "That is fine if a script subscribes to it; otherwise bind one with the setup tool.");
-                if (listeners > 1)
-                    report.Warning("action_many_handlers", "Viewer action \"" + id + "\" has " + listeners + " handlers.", "Keep one handler that accepts or refunds the action, so it is fulfilled once.");
+                if (listeners - broken > 1)
+                    report.Warning("action_many_handlers", "Viewer action \"" + id + "\" has " + (listeners - broken) + " handlers.", "Keep one handler that accepts or refunds the action, so it is fulfilled once.");
             }
         }
 

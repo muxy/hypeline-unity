@@ -257,6 +257,38 @@ expect(warnings == [], "warnings = %s" % warnings)
 expect("action_without_handler" in codes, "the action with no handler was not mentioned")'
 [ "$AFTER" = "$(checksum)" ] || { echo "FAIL doctor: the doctor changed the scene file" >&2; exit 1; }
 
+# A handler whose method no longer exists is an error, though its object and a
+# method name are still stored.
+cp "$PROJECT/Assets/Scenes/Main.unity" "$WORK/Main.unity.good"
+SCENE="$PROJECT/Assets/Scenes/Main.unity" python3 - <<'EOF'
+import os, re
+path = os.environ["SCENE"]
+scene = open(path).read()
+changed, count = re.subn(r"(m_MethodName\s+value: )OnShield$", r"\1OnShieldRenamedAway", scene, flags=re.M)
+assert count == 2, "expected the two OnShield bindings, found %d" % count
+open(path, "w").write(changed)
+EOF
+job doctorbroken '{"tool":"doctor","scene":"Assets/Scenes/Main.unity","offline":true}'
+check doctorbroken 1 '
+expect(not r["ok"], "a scene with handlers that cannot run was reported ok")
+expect(errors == ["action_handler_broken", "action_handler_broken"], "errors = %s" % errors)
+expect("action_many_handlers" not in codes, "a handler that cannot run was counted as a working one")'
+
+# Binding the action again replaces the handler that cannot run.
+job rebind '{"tool":"setup","scene":"Assets/Scenes/Main.unity","actions":[
+  {"id":"shield","handler":{"gameObject":"Player","component":"PlayerHealth","method":"OnShield"}},
+  {"id":"storm","handler":{"gameObject":"Hypeline Handlers","component":"PlayerHealth","method":"OnShield"}}]}'
+check rebind 0 '
+expect(r["ok"], "errors = %s" % errors)
+expect(sum("removed a handler that could not run" in c for c in r["changed"]) == 2, "changed = %s" % r["changed"])
+expect(sum("calls PlayerHealth.OnShield" in c for c in r["changed"]) == 2, "changed = %s" % r["changed"])
+import re
+bound = re.findall(r"m_MethodName\s+value: (\w+)", scene)
+expect(sorted(bound) == ["OnHealthpack", "OnHealthpack", "OnShield", "OnShield"], "bound methods = %s" % bound)'
+
+job doctorrepaired '{"tool":"doctor","scene":"Assets/Scenes/Main.unity","offline":true}'
+check doctorrepaired 0 'expect(r["ok"] and errors == [], "errors = %s" % errors)'
+
 # With the lookup on, an ID that is not registered is an error. The lookup needs
 # the network and the portal's public lookup, so no answer is noted rather than
 # failed.

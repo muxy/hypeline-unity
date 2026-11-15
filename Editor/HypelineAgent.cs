@@ -450,6 +450,90 @@ namespace MuxyHypeline
             return found;
         }
 
+        /// <summary>
+        /// The Inspector-bound handlers of one of the manager's actions that can no longer
+        /// run: the target object is gone, or it has no method with the stored name that
+        /// takes what the binding passes. Returns their indexes among the action's handlers;
+        /// total is how many handlers the action has.
+        /// </summary>
+        internal static List<int> BrokenHandlers(MuxyHypelineManager manager, string actionId, out int total)
+        {
+            List<int> broken = new List<int>();
+            total = 0;
+
+            SerializedProperty actions = new SerializedObject(manager).FindProperty("GameActions");
+            for (int i = 0; i < actions.arraySize; i++)
+            {
+                SerializedProperty action = actions.GetArrayElementAtIndex(i);
+                if (action.FindPropertyRelative("ID").stringValue != actionId) continue;
+
+                SerializedProperty calls = action.FindPropertyRelative("OnGameActionUsed.m_PersistentCalls.m_Calls");
+                if (calls == null) break;
+
+                total = calls.arraySize;
+                for (int c = 0; c < calls.arraySize; c++)
+                {
+                    SerializedProperty call = calls.GetArrayElementAtIndex(c);
+                    UnityEngine.Object target = call.FindPropertyRelative("m_Target").objectReferenceValue;
+                    string method = call.FindPropertyRelative("m_MethodName").stringValue;
+                    int mode = call.FindPropertyRelative("m_Mode").intValue;
+
+                    if (target == null || string.IsNullOrEmpty(method) || !HandlerMethodExists(target.GetType(), method, mode))
+                        broken.Add(c);
+                }
+                break;
+            }
+
+            return broken;
+        }
+
+        /// <summary>
+        /// Whether type has an instance method a UnityEvent binding of the given mode can
+        /// call. The modes are UnityEngine.Events.PersistentListenerMode: 0 passes the
+        /// event's own argument, 1 nothing, and 2 to 6 a value stored with the binding.
+        /// </summary>
+        private static bool HandlerMethodExists(Type type, string method, int mode)
+        {
+            Type[] arguments;
+            switch (mode)
+            {
+                case 0: arguments = new Type[] { typeof(GameActionUsed) }; break;
+                case 1: arguments = new Type[0]; break;
+                case 3: arguments = new Type[] { typeof(int) }; break;
+                case 4: arguments = new Type[] { typeof(float) }; break;
+                case 5: arguments = new Type[] { typeof(string) }; break;
+                case 6: arguments = new Type[] { typeof(bool) }; break;
+                default: arguments = null; break; // An object reference of some Unity type.
+            }
+
+            const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
+                | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly;
+
+            // Private methods of base types are not inherited, so each type is searched.
+            for (Type current = type; current != null && current != typeof(object); current = current.BaseType)
+            {
+                foreach (System.Reflection.MethodInfo candidate in current.GetMethods(flags))
+                {
+                    if (candidate.Name != method || candidate.IsGenericMethod) continue;
+
+                    System.Reflection.ParameterInfo[] parameters = candidate.GetParameters();
+                    if (arguments == null)
+                    {
+                        if (parameters.Length == 1 && typeof(UnityEngine.Object).IsAssignableFrom(parameters[0].ParameterType)) return true;
+                        continue;
+                    }
+
+                    if (parameters.Length != arguments.Length) continue;
+                    bool same = true;
+                    for (int p = 0; p < parameters.Length; p++)
+                        if (parameters[p].ParameterType != arguments[p]) same = false;
+                    if (same) return true;
+                }
+            }
+
+            return false;
+        }
+
         internal static string PathOf(GameObject gameObject)
         {
             string path = gameObject.name;

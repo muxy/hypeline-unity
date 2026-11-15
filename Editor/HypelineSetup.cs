@@ -485,6 +485,15 @@ namespace MuxyHypeline
             }
             if (action.OnGameActionUsed == null) action.OnGameActionUsed = new MuxyHypelineGameActionUsedEvent();
 
+            // A handler that can no longer run, such as one whose method was renamed,
+            // is replaced rather than left beside the new one. Last first, so the
+            // indexes of the rest stay valid.
+            int total;
+            List<int> broken = HypelineAgent.BrokenHandlers(manager, id, out total);
+            for (int i = broken.Count - 1; i >= 0; i--) UnityEventTools.RemovePersistentListener(action.OnGameActionUsed, broken[i]);
+            if (broken.Count > 0)
+                report.changed.Add("Action " + id + ": removed " + (broken.Count == 1 ? "a handler" : broken.Count + " handlers") + " that could not run");
+
             for (int i = 0; i < action.OnGameActionUsed.GetPersistentEventCount(); i++)
             {
                 if (action.OnGameActionUsed.GetPersistentTarget(i) == handler.Component && action.OnGameActionUsed.GetPersistentMethodName(i) == handler.Method.Name)
