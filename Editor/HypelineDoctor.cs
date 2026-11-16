@@ -69,9 +69,11 @@ namespace MuxyHypeline
             SerializedObject serialized = new SerializedObject(manager);
 
             CheckGameId(job, report, serialized);
-            report.stage = ((Stage)serialized.FindProperty("Stage").enumValueIndex).ToString().ToLowerInvariant();
-            if (report.stage == "sandbox" || report.stage == "staging")
-                report.Info(report.stage + "_stage", "The manager connects to " + report.stage + ".", "Set its Stage to Production before release.");
+            report.stage = ((Stage)serialized.FindProperty("Stage").intValue).ToString().ToLowerInvariant();
+            if (report.stage == "sandbox")
+                report.Error("sandbox_stage", "The manager's Stage is Sandbox, which is retired, so the game may not connect.", "Set its Stage to Production. Games are tested on production, on the developer's own channel.");
+            else if (report.stage == "staging")
+                report.Info("staging_stage", "The manager connects to staging.", "Set its Stage to Production before release.");
 
             if (string.IsNullOrWhiteSpace(serialized.FindProperty("GameMetadata").FindPropertyRelative("Name").stringValue))
                 report.Warning("no_game_name", "The manager has no game name, so viewers cannot identify the game in the extension.", "Set Game Metadata > Name on the manager.");

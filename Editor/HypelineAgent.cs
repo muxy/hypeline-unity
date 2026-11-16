@@ -27,7 +27,7 @@ namespace MuxyHypeline
         public string gameId = "";
         /// <summary>Setup: the game name viewers see. Empty keeps the current one.</summary>
         public string gameName = "";
-        /// <summary>Setup: "production", "sandbox" or "staging". Empty keeps the current stage.</summary>
+        /// <summary>Setup: "production", or "staging" for Muxy's own testing. Empty keeps the current stage.</summary>
         public string stage = "";
 
         public bool skipMenu;

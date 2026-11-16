@@ -39,11 +39,15 @@ namespace MuxyHypeline
 
             Stage stage = Stage.Production;
             string stageName = (job.stage ?? "").Trim().ToLowerInvariant();
-            if (stageName == "sandbox") stage = Stage.Sandbox;
+            if (stageName == "sandbox")
+            {
+                report.Error("retired_stage", "The sandbox stage is retired.", "Leave \"stage\" out or set it to \"production\". Games are tested on production, on the developer's own channel.");
+                return;
+            }
             else if (stageName == "staging") stage = Stage.Staging;
             else if (stageName.Length > 0 && stageName != "production")
             {
-                report.Error("invalid_stage", "\"" + job.stage + "\" is not a stage.", "Set \"stage\" to \"production\", \"sandbox\" or \"staging\", or leave it out.");
+                report.Error("invalid_stage", "\"" + job.stage + "\" is not a stage.", "Set \"stage\" to \"production\", or leave it out.");
                 return;
             }
 
@@ -169,12 +173,12 @@ namespace MuxyHypeline
             report.gameId = HypelineGameId.Normalize(gameIdProperty.stringValue);
 
             SerializedProperty stageProperty = serialized.FindProperty("Stage");
-            if (setStage && stageProperty.enumValueIndex != (int)stage)
+            if (setStage && stageProperty.intValue != (int)stage)
             {
-                stageProperty.enumValueIndex = (int)stage;
+                stageProperty.intValue = (int)stage;
                 report.changed.Add("Manager Stage = " + stage);
             }
-            report.stage = ((Stage)stageProperty.enumValueIndex).ToString().ToLowerInvariant();
+            report.stage = ((Stage)stageProperty.intValue).ToString().ToLowerInvariant();
 
             string gameName = (job.gameName ?? "").Trim();
             SerializedProperty nameProperty = serialized.FindProperty("GameMetadata").FindPropertyRelative("Name");

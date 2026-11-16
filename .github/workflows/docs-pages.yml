@@ -34,7 +34,7 @@ jobs:
           node-version: '22'
       - name: Verify embedded C# examples
         run: node 'Documentation~/tools/sync-examples.mjs' --check
-      - name: Check and build environment documentation
+      - name: Check and build the documentation
         run: |
           node --test 'Documentation~/tools/build-site.test.mjs'
           node 'Documentation~/tools/build-site.mjs' 'site~'

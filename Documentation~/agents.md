@@ -8,8 +8,8 @@ behalf. With one approval from the developer you can do the integration yourself
 2. [Register a Game ID](#2-register-a-game-id) for the game.
 3. [Set up and check the scene](#3-set-up-and-check-the-scene) with the package's
    Editor tools, without the Unity Editor UI.
-4. [Test in the sandbox](#4-test-in-the-sandbox): sign the game in and send it a
-   viewer action, without a Twitch channel.
+4. [Test on the developer's channel](#4-test-on-the-developers-channel): sign the game
+   in and send it a viewer action yourself, at no cost and without opening Twitch.
 
 The [getting-started guide](https://muxy.github.io/hypeline-unity/) is the reference for
 the integration itself: installing the package, what each prefab does, writing an action
@@ -29,7 +29,7 @@ Ask for access with a name the developer will recognise and the scopes you need:
 ```sh
 curl -s -X POST https://dev.muxy.io/api/agent/device \
   -H 'Content-Type: application/json' \
-  -d '{"client_name": "Your agent name", "scopes": ["games:read", "games:create", "sandbox:test"]}'
+  -d '{"client_name": "Your agent name", "scopes": ["games:read", "games:create", "games:test"]}'
 ```
 
 ```json
@@ -40,7 +40,7 @@ curl -s -X POST https://dev.muxy.io/api/agent/device \
   "verification_uri_complete": "https://dev.muxy.io/agent/approve?code=BCDF-GHJK",
   "expires_in": 600,
   "interval": 5,
-  "scope": "games:create games:read sandbox:test"
+  "scope": "games:create games:read games:test"
 }
 ```
 
@@ -48,7 +48,7 @@ curl -s -X POST https://dev.muxy.io/api/agent/device \
 |---|---|
 | `games:read` | List the developer's games and check whether a Game ID is available. |
 | `games:create` | Register a Game ID in the developer's name. |
-| `sandbox:test` | Sign their games in to the sandbox and send test viewer actions. |
+| `games:test` | Sign their games in on their own Twitch channel and send test viewer actions, at no cost. |
 
 Show the developer `verification_uri_complete` and the `user_code`, and ask them to open
 the link, check that the code matches, and approve. They sign in with Twitch, and accept
@@ -75,7 +75,7 @@ Until the developer approves, the answer is HTTP 400 with an `error`:
 Once approved, you get the token, once:
 
 ```json
-{ "access_token": "mxa_...", "token_type": "Bearer", "expires_in": 2592000, "scope": "games:create games:read sandbox:test", "token_id": "tok_..." }
+{ "access_token": "mxa_...", "token_type": "Bearer", "expires_in": 2592000, "scope": "games:create games:read games:test", "token_id": "tok_..." }
 ```
 
 Send it as `Authorization: Bearer mxa_...` on the requests below.
@@ -198,7 +198,7 @@ Only `tool` is required. Everything else is optional:
 | `scene` | Scene asset path. Left out: the active scene in an open Editor, or the first enabled build scene in batch mode. |
 | `gameId` | The game's ID from <https://dev.muxy.io/games>. Left out: the manager keeps its current ID (a new manager uses the shared test ID `gamelink-testing`). |
 | `gameName` | The name viewers see in the extension. |
-| `stage` | `"production"`, `"sandbox"` or `"staging"`. Staging uses the staging portal and game backend. |
+| `stage` | `"production"`. Leave it out: a game is tested and released on the same stage. |
 | `texts` | Game Texts, matched by `label`. A new label is added; an existing one is updated. |
 | `actions` | Viewer actions, matched by `id`. A new ID is added; an existing one is updated. |
 | `skipMenu`, `skipAlert`, `skipEventSystem` | `true` to not add that object. The alert is a required part of the integration; skip it only if the game shows viewer actions another way. |
@@ -289,19 +289,29 @@ are filled by setup; `gameIdStatus` is filled by the doctor (`active`, `suspende
 `archived`, `not_registered`, `unknown` or `not_checked`). Report each finding you do
 not resolve to the developer rather than hiding it.
 
-## 4. Test in the sandbox
+## 4. Test on the developer's channel
 
-The sandbox is a separate Hypeline backend for testing. With the `sandbox:test` scope
-you can sign the game in and act as a viewer, on a test channel that belongs to this
-developer and game. It shows that the game receives an action, that your handler runs,
-and that the game's accept or refund reaches Hypeline.
+With the `games:test` scope you can sign the game in and act as a viewer yourself. The
+game runs against the same Hypeline backend as a released game, on the developer's own
+Twitch channel: the Twitch account they approved you with. It shows that the game
+receives an action, that your handler runs, and that the game's accept or refund reaches
+Hypeline.
 
-It does not show the Twitch extension, a real broadcaster's sign-in, or the alert on a
-stream. Those are the guide's steps 5 and 6, and they are still required before release.
+A test action costs nothing. It comes from a test viewer, `hypeline-test-viewer`, and is
+recorded at zero: no coins are created or spent. The game is still told the price the
+channel has set, as it is for a real viewer.
+
+It does not show a real viewer using the Twitch extension, a broadcaster signing in from
+the extension, or the alert on a stream. Those are the guide's steps 5 and 6, and they
+are still required before release.
 
 **Before you start**
 
-- Set the manager's stage to the sandbox: a setup job with `"stage": "sandbox"`.
+- Leave the manager on the production stage. There is no separate test backend to switch
+  to, and nothing to switch back afterwards.
+- Tell the developer that the test runs on their Twitch channel. A game that signs in
+  publishes its actions to that channel, replacing what the extension showed there
+  before. Do not test while they are live on that channel with another game.
 - The game must be running in Play mode. The package has no tool that enters Play mode
   for you. Use whatever control of the Editor you have, or ask the developer to press
   Play.
@@ -309,56 +319,59 @@ stream. Those are the guide's steps 5 and 6, and they are still required before 
 **Sign the game in**
 
 ```sh
-curl -s -X POST https://dev.muxy.io/api/agent/sandbox/my-game/pin -H "Authorization: Bearer $TOKEN"
+curl -s -X POST https://dev.muxy.io/api/agent/test/my-game/pin -H "Authorization: Bearer $TOKEN"
 ```
 
 ```json
-{ "pin": "ABC234", "expires_in": 300, "stage": "sandbox", "game_id": "my-game", "channel_id": "hypeline-test-..." }
+{ "pin": "ABC234", "expires_in": 300, "stage": "production", "game_id": "my-game", "channel_id": "123456789" }
 ```
 
-The code works once, for five minutes. The game signs in with it the way a broadcaster
-does: type it into the game's Hypeline panel, or call
-`MuxyHypelineManager.AuthenticateWithPIN(pin)` from a script. If you cannot do either,
-give the developer the code to enter.
+`channel_id` is the developer's Twitch channel. The code works once, for five minutes.
+The game signs in with it the way a broadcaster does: type it into the game's Hypeline
+panel, or call `MuxyHypelineManager.AuthenticateWithPIN(pin)` from a script. If you
+cannot do either, give the developer the code to enter.
 
 **Wait for the game's actions**
 
 ```sh
-curl -s https://dev.muxy.io/api/agent/sandbox/my-game/state -H "Authorization: Bearer $TOKEN"
+curl -s https://dev.muxy.io/api/agent/test/my-game/state -H "Authorization: Bearer $TOKEN"
 ```
 
 The game publishes its actions after it signs in. Ask every second or two until
 `state.game.actions` lists them; if it stays empty for half a minute, the game did not
-sign in (check its Console, the stage, and that the code had not expired).
+sign in (check its Console, and that the code had not expired).
 
 **Use an action as a viewer**
 
 ```sh
-curl -s -X POST https://dev.muxy.io/api/agent/sandbox/my-game/actions -H "Authorization: Bearer $TOKEN" \
+curl -s -X POST https://dev.muxy.io/api/agent/test/my-game/actions -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' -d '{"action_id": "healthpack"}'
 ```
 
 ```json
-{ "transaction_id": "...", "action_id": "healthpack", "cost": 10, "user_id": "hypeline-test-viewer", "username": "TestViewer", "game_id": "my-game", "channel_id": "hypeline-test-..." }
+{ "transaction_id": "...", "action_id": "healthpack", "cost": 10, "user_id": "hypeline-test-viewer", "username": "TestViewer", "game_id": "my-game", "channel_id": "123456789" }
 ```
 
 Add `"username"` to choose the viewer name the game is shown. The game receives the
 action as it would from a real viewer: the handler runs and the interaction alert shows.
+`cost` is the price the channel has set for the action, which is what the game is told;
+nothing is charged. An action with a limited count loses one use, as it does for a real
+viewer.
 
 | `error_code` | Meaning |
 |---|---|
-| `unknown_action` | The game has not published an action with that ID. Check that it signed in with this game's code. |
+| `unknown_action` | The game has not published an action with that ID. Check that it is signed in on the developer's channel. |
 | `action_unavailable` | The game has published nothing yet, or marks the action unavailable or hidden. The `message` says which. |
 | `no_uses_left` | The action's count has run out. |
 
 **See what the game did with it**
 
 ```sh
-curl -s https://dev.muxy.io/api/agent/sandbox/my-game/transactions/TRANSACTION_ID -H "Authorization: Bearer $TOKEN"
+curl -s https://dev.muxy.io/api/agent/test/my-game/transactions/TRANSACTION_ID -H "Authorization: Bearer $TOKEN"
 ```
 
 ```json
-{ "transaction_id": "...", "action_id": "healthpack", "cost": 10, "status": "accepted", "details": "..." }
+{ "transaction_id": "...", "action_id": "healthpack", "status": "accepted", "details": "..." }
 ```
 
 `status` is `pending` until the game answers, then `accepted` (the handler called
@@ -368,14 +381,16 @@ answer, which is a failed check: read the game's Console.
 
 **Afterwards**
 
-- Set the stage back with a setup job: `"stage": "production"`. The doctor reports a
-  manager left on the sandbox.
-- Report what you checked as a sandbox check, separately from the live Twitch check.
+- Stop Play mode. Nothing needs switching back.
+- Report what you checked as a test with a test viewer, separately from the live Twitch
+  check.
 
-Other answers: `sandbox_unavailable` (HTTP 503) means this portal does not offer sandbox
-testing; `sandbox_error` (HTTP 502) means the sandbox could not be reached, so try
-again; `rate_limited` (HTTP 429) means wait a minute. You can test games the developer
-owns or administers, and the shared test ID `gamelink-testing`.
+Other answers: `twitch_account_required` (HTTP 409) means the developer's portal account
+has no Twitch account linked, so ask them to sign in to the portal with Twitch;
+`test_unavailable` (HTTP 503) means this portal does not offer game testing;
+`test_error` (HTTP 502) means Hypeline could not be reached, so try again;
+`rate_limited` (HTTP 429) means wait a minute. You can test games the developer owns or
+administers, and the shared test ID `gamelink-testing`.
 
 ## A typical run
 
@@ -383,11 +398,11 @@ owns or administers, and the shared test ID `gamelink-testing`.
 2. Register the Game ID, or pick the one they already have.
 3. Install the package from the Git URL in the guide and let Unity compile it.
 4. Write the game's handler component and let Unity compile it.
-5. Run a setup job naming the scene, the Game ID, the sandbox stage, and the actions
-   with their handlers (`"addIfMissing": true` attaches the component for you).
+5. Run a setup job naming the scene, the Game ID, and the actions with their handlers
+   (`"addIfMissing": true` attaches the component for you).
 6. Run a doctor job and resolve its errors and warnings.
-7. With the game in Play mode, sign it in to the sandbox, send each action, and confirm
-   each is accepted. Check the refund path too if the handler has one.
-8. Set the stage back to production and run the doctor again.
-9. Report what you did and what you verified, and what is left for the developer:
+7. With the game in Play mode, sign it in on the developer's channel, send each action
+   as the test viewer, and confirm each is accepted. Check the refund path too if the
+   handler has one.
+8. Report what you did and what you verified, and what is left for the developer:
    positioning the menu and alert, and the live Twitch check in the guide's steps 5 and 6.
