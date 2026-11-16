@@ -91,9 +91,12 @@ public static class Fixture
             if (hadStaging) PlayerPrefs.SetString(stagingKey, staged); else PlayerPrefs.DeleteKey(stagingKey);
             Object.DestroyImmediate(holder);
         }
+        // The retired sandbox stage keeps its value, so scenes that hold it still load.
+#pragma warning disable 618
         if ((int)MuxyHypeline.Stage.Production != 0 || (int)MuxyHypeline.Stage.Sandbox != 1 || (int)MuxyHypeline.Stage.Staging != 2)
             throw new System.Exception("Existing serialized stage values changed");
         foreach (var stage in new[] { MuxyHypeline.Stage.Production, MuxyHypeline.Stage.Sandbox, MuxyHypeline.Stage.Staging })
+#pragma warning restore 618
         {
             string portal = stage == MuxyHypeline.Stage.Staging ? "https://dev.staging.muxy.io" : "https://dev.muxy.io";
             if (MuxyHypeline.HypelineGameId.PortalUrlForStage(stage) != portal
@@ -143,6 +146,18 @@ public static class Fixture
         if (handler.ObjectHandlerCalls != 1)
             throw new System.Exception("Handler(object) did not receive the event exactly once");
         Debug.Log("PASS Handler(object) invocation");
+    }
+
+    // Leaves the saved scene's manager on the retired sandbox stage, as an
+    // older project's scene would be.
+    public static void UseRetiredStage()
+    {
+        var scene = EditorSceneManager.OpenScene("Assets/Scenes/Main.unity", OpenSceneMode.Single);
+        var serialized = new SerializedObject(Object.FindObjectOfType<MuxyHypelineManager>());
+        serialized.FindProperty("Stage").intValue = 1;
+        serialized.ApplyModifiedPropertiesWithoutUndo();
+        EditorSceneManager.MarkSceneDirty(scene);
+        if (!EditorSceneManager.SaveScene(scene)) throw new System.Exception("Could not save the scene");
     }
 }
 EOF
@@ -238,7 +253,7 @@ job doctorbefore '{"tool":"doctor","scene":"Assets/Scenes/Main.unity","offline":
 check doctorbefore 1 'expect(errors == ["no_manager"], "errors = %s" % errors)'
 
 # Setup adds and wires everything. The scene comes from the build settings.
-job setup '{"tool":"setup","gameId":" Agent-Test-Game ","gameName":"Agent Test Game","stage":"sandbox",
+job setup '{"tool":"setup","gameId":" Agent-Test-Game ","gameName":"Agent Test Game","stage":"staging",
   "texts":[{"label":"Health","value":"50","icon":"fa-solid:heart"}],
   "actions":[
     {"id":"healthpack","name":"Spawn Healthpack","description":"Add up to 10 health to the player.","category":"help","impact":2,"count":25,"icon":"fa-solid:heart",
@@ -250,7 +265,7 @@ job setup '{"tool":"setup","gameId":" Agent-Test-Game ","gameName":"Agent Test G
 check setup 0 '
 expect(r["ok"] and errors == [], "errors = %s" % errors)
 expect(r["scene"] == "Assets/Scenes/Main.unity", "scene = %s" % r["scene"])
-expect(r["gameId"] == "agent-test-game" and r["stage"] == "sandbox", "gameId/stage = %s/%s" % (r["gameId"], r["stage"]))
+expect(r["gameId"] == "agent-test-game" and r["stage"] == "staging", "gameId/stage = %s/%s" % (r["gameId"], r["stage"]))
 for item in ["MuxyHypelineManager", "MuxyHypelineMenu", "MuxyHypelineInteractionAlert", "Game Text Health", "Action healthpack", "Action shield", "Action wave",
              "GameObject Hypeline Handlers", "PlayerHealth on Hypeline Handlers"]:
     expect(item in r["created"], "%s was not created: %s" % (item, r["created"]))
@@ -414,3 +429,27 @@ job doctorstaging '{"tool":"doctor","scene":"Assets/Scenes/Main.unity","offline"
 check doctorstaging 0 '
 expect(r["stage"] == "staging" and "staging_stage" in codes, "doctor did not report staging")'
 echo "PASS staging environment"
+
+# The sandbox stage is retired: setup refuses to select it and changes nothing,
+# and the doctor reports a scene that was left on it as an error.
+BEFORE=$(checksum)
+job setupsandbox '{"tool":"setup","scene":"Assets/Scenes/Main.unity","stage":"sandbox","offline":true}'
+check setupsandbox 1 '
+expect(errors == ["retired_stage"], "errors = %s" % errors)
+expect(r["changed"] == [] and not r["sceneSaved"], "a refused stage changed the scene")'
+[ "$BEFORE" = "$(checksum)" ] || { echo "FAIL setupsandbox: the scene file changed" >&2; exit 1; }
+
+unity retiredstage -quit -executeMethod Fixture.UseRetiredStage
+[ "$STATUS" = 0 ] || { echo "FAIL retiredstage: see $WORK/retiredstage.log" >&2; exit 1; }
+job doctorsandbox '{"tool":"doctor","scene":"Assets/Scenes/Main.unity","offline":true}'
+check doctorsandbox 1 '
+expect(r["stage"] == "sandbox" and "sandbox_stage" in errors, "doctor did not report the retired stage: %s %s" % (r["stage"], errors))'
+
+# Setting the stage again repairs it.
+job setupproduction '{"tool":"setup","scene":"Assets/Scenes/Main.unity","stage":"production","offline":true}'
+check setupproduction 0 '
+expect(r["stage"] == "production" and "Manager Stage = Production" in r["changed"], "production was not restored: %s" % r["changed"])'
+job doctorproduction '{"tool":"doctor","scene":"Assets/Scenes/Main.unity","offline":true}'
+check doctorproduction 0 '
+expect(r["stage"] == "production" and "sandbox_stage" not in codes and "staging_stage" not in codes, "doctor still reports a non-production stage")'
+echo "PASS retired sandbox stage"

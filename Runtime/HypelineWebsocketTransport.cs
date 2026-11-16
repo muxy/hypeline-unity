@@ -17,6 +17,9 @@ namespace MuxyHypeline
     public enum Stage
     {
         Production = 0,
+        // Retired. The value stays so scenes and scripts that name it still load
+        // and compile. Games are tested on Production.
+        [Obsolete("The sandbox stage is retired. Use Stage.Production; games are tested on production.")]
         Sandbox = 1,
         Staging = 2
     };

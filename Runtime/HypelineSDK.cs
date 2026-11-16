@@ -205,13 +205,17 @@ namespace MuxyHypeline
             Transport.Run(this);
         }
 
+        [Obsolete("The sandbox stage is retired. Use RunInProductionAsync.")]
         public Task RunInSandboxAsync() { ThrowIfDisposed(); return Transport.OpenAndRunInSandbox(this); }
         public Task RunInStagingAsync() { ThrowIfDisposed(); return Transport.OpenAndRunInStaging(this); }
         public Task RunInProductionAsync() { ThrowIfDisposed(); return Transport.OpenAndRunInProduction(this); }
 
+        [Obsolete("The sandbox stage is retired. Use RunInProduction.")]
         public void RunInSandbox()
         {
+#pragma warning disable 618
             ObserveConnection(RunInSandboxAsync());
+#pragma warning restore 618
         }
 
         public void RunInStaging()
@@ -231,7 +235,7 @@ namespace MuxyHypeline
             catch (Exception error)
             {
                 // Do not log endpoint query strings, payloads or credentials.
-                LogWarning("Hypeline transport could not start (" + error.GetType().Name + "). Await the RunInProductionAsync, RunInSandboxAsync or RunInStagingAsync task for details.");
+                LogWarning("Hypeline transport could not start (" + error.GetType().Name + "). Await the RunInProductionAsync or RunInStagingAsync task for details.");
             }
         }
 

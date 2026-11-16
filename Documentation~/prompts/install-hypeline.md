@@ -34,10 +34,11 @@ visible in-game viewer-action alert is a required part of the integration.
   run the doctor again after any later scene change. They take a JSON job file
   and write a JSON report. Include each report's unresolved findings in your
   result.
-- If the portal offers sandbox testing, use it after step 4: sign the game in
-  to the sandbox, send each action as a test viewer, and confirm the handler
-  ran and each transaction was accepted or refunded as intended. Set the
-  manager back to the production stage afterwards. Report this as a sandbox
+- If the portal offers game testing, use it after step 4: sign the game in on
+  my own Twitch channel, send each action as a test viewer, and confirm the
+  handler ran and each transaction was accepted or refunded as intended. It
+  costs nothing and the manager stays on the production stage. Check with me
+  first if I might be live on that channel. Report this as a test-viewer
   check. It does not replace the local previews in step 4 or the live Twitch
   checks in steps 5 and 6.
 - Use available Unity, filesystem, and browser tools. Make persistent scene

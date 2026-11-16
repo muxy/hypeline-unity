@@ -155,7 +155,13 @@ public class MuxyHypelineManager : MonoBehaviour
         }
         transportStartedAt = Time.realtimeSinceStartup;
         Debug.Log("Hypeline: Starting the Twitch connection (" + Stage + ").");
-        if (Stage == Stage.Sandbox) SDK.RunInSandbox();
+#pragma warning disable 618
+        if (Stage == Stage.Sandbox)
+        {
+            Debug.LogWarning("Hypeline: the sandbox stage is retired and may not connect. Set the manager's Stage to Production; games are tested on production.");
+            SDK.RunInSandbox();
+        }
+#pragma warning restore 618
         else if (Stage == Stage.Staging) SDK.RunInStaging();
         else SDK.RunInProduction();
         DidOpenAndRun = true;
