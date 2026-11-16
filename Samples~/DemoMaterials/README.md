@@ -1,6 +1,6 @@
 # Hypeline Demo Materials
 
-These optional scripts support the developer walkthrough at https://muxy.github.io/gateway-unity/. They are examples, not ready-made prefabs. Import this sample from Package Manager in each Unity project where you want to use it.
+These optional scripts support the developer walkthrough at https://muxy.github.io/hypeline-unity/. They are examples, not ready-made prefabs. Import this sample from Package Manager in each Unity project where you want to use it.
 
 ## Quick start with the Hypeline prefabs
 

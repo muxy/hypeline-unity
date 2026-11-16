@@ -6,6 +6,7 @@
 - The docs site now serves `agents.md` and `llms.txt`.
 - `agents.md` also covers the developer portal for agents: getting access with one approval from the developer, registering a Game ID, and testing a game on the developer's own Twitch channel with a test viewer, at no cost and with the manager left on Production (`/api/agent/test/…`, scope `games:test`). The install prompt tells an agent to use them where the portal offers them.
 - The guide notes that action prices are set per channel in the extension's configuration, so a developer can set them to 0 on their own channel while testing.
+- Remove files that no longer serve the package: the October compatibility plan and its recorded validation results, the retired walkthrough stub, the empty `SampleScene` and `Runtime/x86` folders, and documentation images and a duplicate example that the guide does not use. No runtime, Editor, prefab or sample code changes.
 
 [0.2.0] 2026/11/15
 Security and reliability
