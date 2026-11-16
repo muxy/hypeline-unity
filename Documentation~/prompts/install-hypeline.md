@@ -4,9 +4,10 @@ Use the open Unity project, or the project path I provide, and carry out the
 Muxy Hypeline Getting Started guide:
 https://muxy.github.io/hypeline-unity/
 
-Read the current guide before making changes. Follow its steps 1–7 and use its
-current package URL, examples, field names, and troubleshooting advice. The
-visible in-game viewer-action alert is a required part of the integration.
+Read the current guide before making changes. Install
+`https://github.com/muxy/hypeline-unity.git#main` to get the latest SDK and agent
+tooling. Follow the guide's steps 1–7, examples, field names, and troubleshooting
+advice. The visible in-game viewer-action alert is a required part of the integration.
 
 ## Project and working method
 
@@ -49,11 +50,13 @@ visible in-game viewer-action alert is a required part of the integration.
 
 ## Complete the seven steps
 
-1. **Install.** Install the SDK from the current guide's Git URL and import
-   DemoMaterials. Resolve package and script errors before continuing. Record
-   the package URL and resolved commit; a moving development branch is not a
-   fixed release. Add the Muxy.Hypeline assembly reference if my assembly needs
-   it. Inspect the actual installed package rather than assuming types exist.
+1. **Install.** Install the SDK from
+   `https://github.com/muxy/hypeline-unity.git#main` and import DemoMaterials.
+   For an existing installation, resolve the latest `main` before QA, preserving
+   local SDK changes as described above. Resolve package and script errors before
+   continuing. Record the package URL and resolved commit; `main` changes over
+   time. Add the Muxy.Hypeline assembly reference if my assembly needs it. Inspect
+   the actual installed package rather than assuming types exist.
 
 2. **Set up the scene.** Reuse or add MuxyHypelineManager. Set its Game ID to
    my game's own ID: the one I give you from https://dev.muxy.io/games, or one

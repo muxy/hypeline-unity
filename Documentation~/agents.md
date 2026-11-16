@@ -133,8 +133,9 @@ Editor UI:
 
 Each takes a JSON job file and writes a JSON report. Use them instead of editing
 `.unity` scene files by hand. They cover steps 2 and 3 of the guide (scene setup and
-action configuration). Install the package first, from the Git URL in the guide, and let
-Unity compile it.
+action configuration). Install the latest SDK and agent tooling from
+`https://github.com/muxy/hypeline-unity.git#main` first, and let Unity compile it.
+Record the resolved commit in your QA report, since `main` changes over time.
 
 ### Run a job
 
@@ -396,7 +397,8 @@ administers, and the shared test ID `gamelink-testing`.
 
 1. Get access (one approval from the developer) and agree the Game ID with them.
 2. Register the Game ID, or pick the one they already have.
-3. Install the package from the Git URL in the guide and let Unity compile it.
+3. Install the package from `https://github.com/muxy/hypeline-unity.git#main` and let
+   Unity compile it. Record the resolved commit.
 4. Write the game's handler component and let Unity compile it.
 5. Run a setup job naming the scene, the Game ID, and the actions with their handlers
    (`"addIfMissing": true` attaches the component for you).

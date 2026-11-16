@@ -2,7 +2,7 @@
 
 > Hypeline connects a Unity game to its live audience on Twitch: viewers trigger game actions and vote in polls through a Twitch extension, and the game shows each action as it happens.
 
-The Unity package is installed from a Git URL in Unity Package Manager. A broadcaster signs in from inside the game with a short code, and the game receives viewer actions over a WebSocket connection.
+Install the latest SDK and agent tooling from `https://github.com/muxy/hypeline-unity.git#main` in Unity Package Manager. Record the resolved commit for QA, since `main` changes over time. A broadcaster signs in from inside the game with a short code, and the game receives viewer actions over a WebSocket connection.
 
 ## Docs
 
