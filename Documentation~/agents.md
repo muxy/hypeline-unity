@@ -10,6 +10,9 @@ behalf. With one approval from the developer you can do the integration yourself
    Editor tools, without the Unity Editor UI.
 4. [Test on the developer's channel](#4-test-on-the-developers-channel): sign the game
    in and send it a viewer action yourself, at no cost and without opening Twitch.
+5. [Set up the game's page](#5-set-up-the-games-page), if the developer wants you to:
+   how the game looks and what it says in the extension, and its links to the same game
+   on other platforms.
 
 The [getting-started guide](https://muxy.github.io/hypeline-unity/) is the reference for
 the integration itself: installing the package, what each prefab does, writing an action
@@ -46,9 +49,16 @@ curl -s -X POST https://dev.muxy.io/api/agent/device \
 
 | Scope | Lets you |
 |---|---|
-| `games:read` | List the developer's games and check whether a Game ID is available. |
+| `games:read` | List the developer's games, read their pages and platform links, and check whether a Game ID is available. |
 | `games:create` | Register a Game ID in the developer's name. |
 | `games:test` | Sign their games in on their own Twitch channel and send test viewer actions, at no cost. |
+| `games:page` | Change a game's page in the extension and upload its images. |
+| `games:links` | Link a game to the same game on Twitch and other platforms, and remove those links. |
+
+Ask only for what the work needs. The first three cover the integration, and a request
+that names no scopes gets exactly those. `games:page` and `games:links` change what
+viewers see about the game, so ask for them only when the developer wants
+[the game's page set up](#5-set-up-the-games-page), and name them in the request.
 
 Show the developer `verification_uri_complete` and the `user_code`, and ask them to open
 the link, check that the code matches, and approve. They sign in with Twitch, and accept
@@ -119,7 +129,8 @@ with a letter or number. A new ID works straight away.
 | `creation_limit` | The developer has created five games in 24 hours. Try again later. |
 
 You can read a game (`GET /api/games/{game_id}`), but you cannot rename, archive or hand
-over a game; the developer does that at <https://dev.muxy.io/games>.
+over a game; the developer does that at <https://dev.muxy.io/games>. What you can change
+about a game is in [step 5](#5-set-up-the-games-page).
 
 ## 3. Set up and check the scene
 
@@ -393,6 +404,158 @@ has no Twitch account linked, so ask them to sign in to the portal with Twitch;
 `rate_limited` (HTTP 429) means wait a minute. You can test games the developer owns or
 administers, and the shared test ID `gamelink-testing`.
 
+## 5. Set up the game's page
+
+The developer portal holds the game's page: how the game looks and what it says about
+itself in the Twitch extension, and its links to the same game on other platforms. The
+developer can fill it in at <https://dev.muxy.io/games>. With the scopes below you can
+do it for them.
+
+This step is optional: the game works without it. Do it only if the developer asks.
+Everything here is shown to viewers under the game's name, so agree the text, the links
+and the images with the developer first, and use only images they give you or approve.
+
+| To | You need |
+|---|---|
+| Read the page and the links | `games:read` |
+| Change the page, upload its images | `games:page` |
+| Add or remove platform links, search Twitch | `games:links` |
+
+### Read and change the page
+
+```sh
+curl -s https://dev.muxy.io/api/games/my-game/page -H "Authorization: Bearer $TOKEN"
+```
+
+The page has these sections. A game that never saved one has the defaults.
+
+| Section | Holds |
+|---|---|
+| `appearance` | `logo` and `background` (uploaded images, or `null`), `overlay_color` and `overlay_opacity` (0 to 100) over the background, and a color, font and weight for `primary_text_*`, `secondary_text_*` and `button_text_*`, plus `button_color`. |
+| `tabs` | Which tabs the extension shows: `info`, `news`, `gallery`, `key_features`. |
+| `info` | `about`, `game_type`, `platforms`, and `website_url` and `steam_url`, each shown only while its `show_website_link` or `show_steam_link` is `true`. |
+| `news` | `steam_url`: the game's Steam store page or community hub, whose Steam news the News tab shows. |
+| `gallery` | The gallery images, in order. |
+| `key_features` | `html`: the text of the Key Features tab. |
+| `fonts` | The fonts a page may use. Read only. |
+
+Change it with a `PATCH` that names only what changes. Fields you leave out keep their
+values:
+
+```sh
+curl -s -X PATCH https://dev.muxy.io/api/games/my-game/page -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -d '{
+    "appearance": { "button_color": "FFAA00", "primary_text_font": "Roboto", "primary_text_weight": "regular" },
+    "tabs": { "gallery": true },
+    "info": { "about": "Step into the boots of an elite operative.", "game_type": "FPS",
+              "show_website_link": true, "website_url": "https://example.com/my-game" },
+    "news": { "steam_url": "https://store.steampowered.com/app/440" },
+    "key_features": { "html": "<h1>Key Features</h1><p>Destructible cover.</p>" }
+  }'
+```
+
+The answer is the whole page as stored. An edit is applied whole or not at all: if one
+field is refused, nothing in the request is saved.
+
+- Colors are six hex digits, such as `FFAA00`. A weight is `regular` or `bold`. A font
+  is one of `fonts`.
+- `about` is plain text of up to 2000 characters; `game_type` up to 64 and `platforms`
+  up to 128, on one line.
+- Links start with `https://`. `steam_url` must be a Steam link. `null` or `""` clears a
+  link.
+- Key features may use headings (`h1`, `h2`), paragraphs, line breaks, lists, bold,
+  italic, underline and a text color (`<span style="color: #FFAA00">`). Anything else is
+  removed, and the answer shows what was kept.
+- The News tab only shows once `news.steam_url` is set. `GET
+  /api/games/my-game/page/news` shows the news it would list.
+
+| `error_code` | Meaning |
+|---|---|
+| `invalid_field` | A field was refused. `field` names it, such as `info.website_url`, and `message` says what it must be. |
+| `asset_not_found` | An image id is not an upload of this game, or was uploaded as another kind. |
+| `limit_reached` | Too many gallery images (12 at most). |
+| `rate_limited` | Too many changes of the Steam link. Wait a minute. |
+
+### Upload images
+
+Upload an image as multipart form data, saying what it is for:
+
+```sh
+curl -s -X POST https://dev.muxy.io/api/games/my-game/assets -H "Authorization: Bearer $TOKEN" \
+  -F kind=logo -F file=@/path/to/logo.png
+```
+
+```json
+{ "asset_id": "0123456789abcdef0123456789abcdef", "kind": "logo", "file_name": "logo.png", "mime_type": "image/png", "size": 20480, "width": 600, "height": 240, "url": "https://..." }
+```
+
+`kind` is `logo`, `background` or `gallery`. An image is a PNG, JPEG or GIF of at most
+2 MB and 4096 pixels on a side. Uploading does not change the page. Put the image to
+use by its `asset_id`, of the kind it was uploaded as:
+
+```sh
+curl -s -X PATCH https://dev.muxy.io/api/games/my-game/page -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{ "appearance": { "logo_asset_id": "0123...", "background_asset_id": "4567..." },
+       "gallery": { "asset_ids": ["89ab...", "cdef..."] } }'
+```
+
+`gallery.asset_ids` is the whole gallery in display order: send the full list each time.
+`null` takes a logo or background off. A game holds up to 60 uploads, and uploads that
+nothing uses are cleared after an hour.
+
+| `error_code` | Meaning |
+|---|---|
+| `invalid_image` | Not a PNG, JPEG or GIF, or larger than 4096 pixels on a side. |
+| `file_too_large` | Over 2 MB. |
+| `limit_reached` | The game holds 60 uploads. Unused ones are cleared after an hour. |
+| `uploads_unavailable` | This portal cannot store images right now. Tell the developer. |
+
+### Link the game on other platforms
+
+A link says that this game is the same game as a Twitch category, or a game on IGDB,
+Giant Bomb or TikTok. Anyone with access to the game can add a link; Muxy reviews it
+before it is used anywhere other people see. A link you add is reviewed the same way.
+
+```sh
+# Find the Twitch category by name.
+curl -s "https://dev.muxy.io/api/external/twitch/search?q=my+game" -H "Authorization: Bearer $TOKEN"
+
+# The game's links.
+curl -s https://dev.muxy.io/api/games/my-game/external-ids -H "Authorization: Bearer $TOKEN"
+
+# Add one. "input" is the id on that platform.
+curl -s -X POST https://dev.muxy.io/api/games/my-game/external-ids -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -d '{"provider": "twitch", "input": "509658"}'
+
+# Remove one.
+curl -s -X DELETE https://dev.muxy.io/api/games/my-game/external-ids/twitch/509658 -H "Authorization: Bearer $TOKEN"
+```
+
+`provider` is `twitch` (the category id from the search), `igdb` (the numeric game id),
+`giantbomb` (the game page URL or its GUID, such as `3030-41484`) or `tiktok` (the game's
+name as TikTok LIVE shows it). A new link has the `status` `claimed` until Muxy reviews
+it, then `verified` or `rejected`. Linking a Twitch category also adds the IGDB game
+Twitch maps it to. A game can have three links per platform and eight in all.
+
+Link only the platform pages the developer confirms are this game. Do not guess from a
+similar name.
+
+| `error_code` | Meaning |
+|---|---|
+| `invalid_provider`, `invalid_external_id` | Not a platform or an id of the kind above. |
+| `external_id_not_found` | That platform has no game with this id. |
+| `already_linked` | The game already has this link. |
+| `already_verified_elsewhere` | Another game holds the verified link to it. Tell the developer. |
+| `limit_reached` | Three links per platform, eight in all. |
+| `provider_unavailable`, `provider_not_configured` | The platform could not be asked. Nothing was saved; try again later. |
+
+### What stays with the developer
+
+Renaming a game, its administrators, archiving and restoring it, and its insights are
+not open to agents: those requests answer `token_not_allowed`. The developer does them
+at <https://dev.muxy.io/games>.
+
 ## A typical run
 
 1. Get access (one approval from the developer) and agree the Game ID with them.
@@ -406,5 +569,7 @@ administers, and the shared test ID `gamelink-testing`.
 7. With the game in Play mode, sign it in on the developer's channel, send each action
    as the test viewer, and confirm each is accepted. Check the refund path too if the
    handler has one.
-8. Report what you did and what you verified, and what is left for the developer:
+8. If the developer asked for it, set up the game's page and its platform links, with
+   content they have approved.
+9. Report what you did and what you verified, and what is left for the developer:
    positioning the menu and alert, and the live Twitch check in the guide's steps 5 and 6.

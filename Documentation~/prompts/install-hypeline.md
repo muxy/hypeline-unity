@@ -42,6 +42,11 @@ advice. The visible in-game viewer-action alert is a required part of the integr
   first if I might be live on that channel. Report this as a test-viewer
   check. It does not replace the local previews in step 4 or the live Twitch
   checks in steps 5 and 6.
+- If I ask you to set up my game's page in the extension or its links to other
+  platforms, and the portal offers that to agents, follow step 5 of agents.md.
+  Ask me to approve the extra access by name. Everything on the page is shown
+  to viewers: use only text, links and images I give you or approve, and link
+  only platform pages I confirm are my game.
 - Use available Unity, filesystem, and browser tools. Make persistent scene
   changes outside Play mode and save them. If a UI operation needs a file-based
   equivalent, explain it and verify Unity imports the result. If a step needs
