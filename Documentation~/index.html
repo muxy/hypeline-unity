@@ -126,7 +126,7 @@
 <p>Give your coding agent this Markdown prompt along with your Unity project. It follows steps 1–7, checks existing setup before making changes, and treats the visible in-game viewer-action alert as a required checkpoint.</p>
 <p>Open your project in the agent’s workspace, copy the prompt below, and paste it into your agent chat. You can also download the <code>.md</code> file and attach it. Supply your project path or Twitch channel if the agent cannot determine them from your current session.</p>
 <div class="prompt-actions"><button class="button primary" type="button" data-copy-target="agent-install-prompt">Copy install prompt</button><a class="button secondary" href="prompts/install-hypeline.md" download>Download .md <span aria-hidden="true">↓</span></a></div>
-<p>With one approval from you, an agent can do most of the integration itself: register your Game ID on the developer portal, add and wire the prefabs, Game Texts and viewer actions with the package's Editor tools, and test the game on your own Twitch channel by signing it in and sending it test viewer actions, at no cost. The install prompt tells the agent to do so; the reference it follows is <a href="agents.md">Hypeline for coding agents</a>. Going live on your Twitch channel is still yours to do.</p>
+<p>With one approval from you, an agent can do most of the integration itself: register your Game ID on the developer portal, add and wire the prefabs, Game Texts and viewer actions with the package's Editor tools, and test the game on your own Twitch channel by signing it in and sending it test viewer actions, at no cost. If you ask it to, it can also set up your game&#x27;s page in the extension and its links to other platforms. The install prompt tells the agent to do so; the reference it follows is <a href="agents.md">Hypeline for coding agents</a>. Going live on your Twitch channel is still yours to do.</p>
 <div class="callout"><strong>The same required checkpoints</strong><p>The agent must verify the real viewer action, in-game alert, transaction acknowledgment, and extension update. Local previews and unverified steps must be reported clearly. You may need to complete a Twitch or Unity interaction when the agent cannot access it.</p></div>
 <details class="code-details"><summary>Read the complete install prompt <span>Markdown</span></summary><!-- example:install-hypeline.md --><pre><code id="agent-install-prompt" class="language-markdown"># Install Muxy Hypeline in my Unity project
 
@@ -172,6 +172,11 @@ advice. The visible in-game viewer-action alert is a required part of the integr
   first if I might be live on that channel. Report this as a test-viewer
   check. It does not replace the local previews in step 4 or the live Twitch
   checks in steps 5 and 6.
+- If I ask you to set up my game's page in the extension or its links to other
+  platforms, and the portal offers that to agents, follow step 5 of agents.md.
+  Ask me to approve the extra access by name. Everything on the page is shown
+  to viewers: use only text, links and images I give you or approve, and link
+  only platform pages I confirm are my game.
 - Use available Unity, filesystem, and browser tools. Make persistent scene
   changes outside Play mode and save them. If a UI operation needs a file-based
   equivalent, explain it and verify Unity imports the result. If a step needs

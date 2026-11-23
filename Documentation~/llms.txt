@@ -7,7 +7,7 @@ Install the latest SDK and agent tooling from `https://github.com/muxy/hypeline-
 ## Docs
 
 - [Getting-started guide](https://muxy.github.io/hypeline-unity/): installation, scene setup, the first viewer action, Twitch sign-in, polls, the C# API and troubleshooting. One static HTML page.
-- [Hypeline for coding agents](https://muxy.github.io/hypeline-unity/agents.md): what an agent can do with one approval from the developer. Get access to the developer portal, register a Game ID, set up and check a scene from a JSON job file without the Unity Editor UI, and test the game on the developer's own Twitch channel with a test viewer, at no cost.
+- [Hypeline for coding agents](https://muxy.github.io/hypeline-unity/agents.md): what an agent can do with one approval from the developer. Get access to the developer portal, register a Game ID, set up and check a scene from a JSON job file without the Unity Editor UI, test the game on the developer's own Twitch channel with a test viewer, at no cost, and, if the developer asks, set up the game's page in the extension and its links to other platforms.
 - [Install prompt](https://muxy.github.io/hypeline-unity/prompts/install-hypeline.md): the instructions a developer gives a coding agent to carry out the guide and report what was verified.
 
 ## Examples
